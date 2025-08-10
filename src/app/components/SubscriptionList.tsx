@@ -36,6 +36,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], showSuggestions: true, sort: 'name' });
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [customItems, setCustomItems] = useState<Subscription[]>([]);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -70,6 +71,18 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         const merged: Preferences = { ...getPrefs(), ...serverPrefs } as Preferences;
         setPrefs(merged);
         setPrefsState(merged);
+      }
+      if (Array.isArray(data?.custom)) {
+        const mapped: Subscription[] = (data.custom as Array<{ id: string; name: string; cancelUrl?: string }>).map((c) => ({
+          id: c.id,
+          name: c.name,
+          pricePerMonthUsd: 0,
+          cancelUrl: c.cancelUrl || '#',
+        }));
+        setCustomItems(mapped);
+        // Ensure visibility when suggestions are off
+        const customIds = mapped.map((m) => m.id);
+        setDetectedIds((prev) => Array.from(new Set([...prev, ...customIds])));
       }
     }
     fetchSaved();
@@ -210,7 +223,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       </div>
 
       <ul className="space-y-3 sm:space-y-2">
-        {sortItems(items)
+        {sortItems([...customItems, ...items])
           .filter((s) => !cancelledIds.includes(s.id))
           .filter((s) => prefs.showSuggestions ? true : detectedIds.includes(s.id))
           .filter((s) => !prefs.hiddenIds.includes(s.id))
@@ -326,6 +339,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         onSelect={(opt) => {
           updatePrefs({ showSuggestions: true });
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
+          // add immediately to local custom items for display
+          setCustomItems((prev) => (prev.find((p) => p.id === opt.id) ? prev : [...prev, { id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' }]));
           // persist selection if signed in
           if (session) {
             fetch('/api/subscriptions', {
