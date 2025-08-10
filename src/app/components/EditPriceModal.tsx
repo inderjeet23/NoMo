@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function EditPriceModal({ open, name, price, cadence='month', nextChargeAt, notifyEmail=false, notifyPush=false, requirePrice=false, onDiscard, onSave, onClose }: { open: boolean; name: string; price: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean; requirePrice?: boolean; onDiscard?: () => void; onSave: (p: { price: number; cadence: 'month'|'year'; nextChargeAt?: string; notifyEmail: boolean; notifyPush: boolean }) => void; onClose: () => void }) {
+export default function EditPriceModal({ open, name, price, cadence='month', nextChargeAt, notifyEmail=false, notifyPush=false, requirePrice=false, allowName=false, onDiscard, onSave, onClose }: { open: boolean; name: string; price: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean; requirePrice?: boolean; allowName?: boolean; onDiscard?: () => void; onSave: (p: { name?: string; price: number; cadence: 'month'|'year'; nextChargeAt?: string; notifyEmail: boolean; notifyPush: boolean }) => void; onClose: () => void }) {
   const [value, setValue] = useState<string>('');
+  const [customName, setCustomName] = useState<string>(name || '');
   const [cad, setCad] = useState<'month'|'year'>(cadence);
   const [date, setDate] = useState<string>(nextChargeAt ?? '');
   const [email, setEmail] = useState<boolean>(notifyEmail);
@@ -12,9 +13,10 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
   useEffect(() => {
     if (open) {
       setValue(price > 0 ? String(price) : '');
+      setCustomName(name || '');
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-  }, [open, price]);
+  }, [open, price, name]);
 
   const numeric = useMemo(() => {
     const num = Number(value);
@@ -28,6 +30,11 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
     if (numeric > 100000) return true;
     return false;
   }, [value, numeric]);
+
+  const invalidName = useMemo(() => {
+    if (!allowName) return false;
+    return customName.trim().length === 0 || customName.trim().length > 80;
+  }, [allowName, customName]);
 
   function handleBlur() {
     if (!invalid) setValue(numeric.toFixed(2));
@@ -49,10 +56,25 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
       <div className="absolute inset-0 bg-black/60" onClick={handleRequestClose} />
       <div className="relative card rounded-t-none sm:rounded-2xl w-full h-[90vh] sm:h-auto sm:max-w-md p-4 overflow-auto overscroll-contain">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold">Set price for {name}</h2>
+          <h2 className="text-base font-semibold">{allowName ? 'Track custom subscription' : `Set price for ${name}`}</h2>
           <button className="px-2 py-1 rounded-md hover:bg-neutral-800 tap" onClick={handleRequestClose} aria-label="Close">✖</button>
         </div>
         <div className="grid gap-3">
+          {allowName && (
+            <div className="grid gap-1">
+              <label className="text-sm text-neutral-300">Name</label>
+              <input
+                value={customName}
+                onChange={(e)=>setCustomName(e.target.value)}
+                aria-invalid={invalidName}
+                className="w-full rounded-lg bg-app border border-app px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="e.g., Gym membership"
+              />
+              {invalidName && (
+                <div className="text-xs text-rose-500">Enter a name up to 80 characters.</div>
+              )}
+            </div>
+          )}
           <label className="text-sm text-neutral-300">Price per month (USD)</label>
           <input
             ref={inputRef}
@@ -86,7 +108,7 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
           </div>
           <div className="flex justify-end gap-2 mt-2">
             <button className="btn btn-secondary tap" onClick={handleRequestClose}>{requirePrice ? 'Discard' : 'Cancel'}</button>
-            <button className="btn tap" disabled={requirePrice && invalid} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0) { onSave({ price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email, notifyPush: push }); onClose(); } }}>
+            <button className="btn tap" disabled={(requirePrice && invalid) || invalidName} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0 && !(allowName && invalidName)) { onSave({ name: allowName ? customName.trim() : undefined, price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email, notifyPush: push }); onClose(); } }}>
               Save
             </button>
           </div>

@@ -9,6 +9,7 @@ import OverviewWidgets from "./components/OverviewWidgets";
 
 export default function Home() {
   const [allSubs, setAllSubs] = useState(subscriptions);
+  const [visibleActive, setVisibleActive] = useState(subscriptions);
 
   useEffect(() => {
     const locals = getLocalSubscriptions();
@@ -25,8 +26,11 @@ export default function Home() {
       <Header />
 
       <div className="w-full max-w-5xl mx-auto grid gap-6 sm:gap-8">
-        <OverviewWidgets items={allSubs} />
-        <SubscriptionList items={allSubs} onItemsChange={setAllSubs} />
+        <OverviewWidgets items={visibleActive} />
+        <SubscriptionList
+          items={allSubs}
+          onItemsChange={(list)=>{ setAllSubs(list); setVisibleActive(list); }}
+        />
 
         <section className="mt-8 card p-6">
           <h3 className="text-xl font-extrabold mb-3">Still need help? ✉️ Request Concierge</h3>

@@ -37,4 +37,10 @@ export function upsertCustomLocal(entry: CustomLocal) {
   setCustomLocal(list);
 }
 
+export function removeCustomLocal(id: string) {
+  const list = getCustomLocal();
+  const next = list.filter((x) => x.id !== id);
+  setCustomLocal(next);
+}
+
 

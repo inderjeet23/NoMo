@@ -11,7 +11,7 @@ import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 import { getPrefs, setPrefs, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
 import EditPriceModal from './EditPriceModal';
-import { upsertCustomLocal, getCustomLocal } from '@/lib/customLocal';
+import { upsertCustomLocal, getCustomLocal, removeCustomLocal } from '@/lib/customLocal';
 import SubscriptionCard from './SubscriptionCard';
 import BottomSheet from './BottomSheet';
 import { stripHtml } from './utils/stripHtml';
@@ -46,6 +46,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Subscription | null>(null);
   const [pendingNewId, setPendingNewId] = useState<string | null>(null);
+  const [trackingOpen, setTrackingOpen] = useState(false);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -247,6 +248,12 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             >
               Add service
             </button>
+            <button
+              className="btn-quiet tap h-10 px-4"
+              onClick={()=>setTrackingOpen(true)}
+            >
+              Track custom
+            </button>
           </div>
         </div>
         {hasScanned && (
@@ -273,7 +280,12 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
               onGuide={() => handleGuide(sub)}
               onCancel={() => handleCancelClick(sub)}
-              onHide={() => updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}
+               onHide={() => {
+                 // Remove completely (custom overrides by name will be removed; base suggestions hidden)
+                 setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(sub)));
+                 removeCustomLocal(sub.id);
+                 updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] });
+               }}
               onEditPrice={() => setEditTarget(sub)}
             />
         ))}
@@ -398,6 +410,23 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           setAddOpen(false);
           setEditTarget(newItem);
           setPendingNewId(newItem.id);
+        }}
+      />
+
+      {/* Lightweight manual tracker with name */}
+      <EditPriceModal
+        open={trackingOpen}
+        name={editTarget?.name ?? ''}
+        price={0}
+        allowName
+        onClose={() => setTrackingOpen(false)}
+        onSave={({ name, price, cadence, nextChargeAt, notifyEmail, notifyPush }) => {
+          const id = `custom-${Date.now()}`;
+          const finalName = (name && name.trim()) || 'Custom service';
+          const newItem: Subscription = { id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#' };
+          setCustomItems((prev) => [...prev, newItem]);
+          upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail, notifyPush });
+          setTrackingOpen(false);
         }}
       />
 
