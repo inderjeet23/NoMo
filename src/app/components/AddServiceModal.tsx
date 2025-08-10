@@ -11,7 +11,7 @@ export default function AddServiceModal({ open, onClose, onSelect }: { open: boo
     if (!open) return;
     (async () => {
       try {
-        const res = await fetch('/api/directory');
+        const res = await fetch('/api/directory', { cache: 'no-store' });
         const data = await res.json();
         setOptions(Array.isArray(data?.options) ? data.options : []);
       } catch {
