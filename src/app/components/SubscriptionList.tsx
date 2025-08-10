@@ -80,16 +80,21 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         setPrefsState(merged);
       }
       if (Array.isArray(data?.custom)) {
-        const mapped: Subscription[] = (data.custom as Array<{ id: string; name: string; cancelUrl?: string }>).map((c) => ({
+        const mapped: Subscription[] = (data.custom as Array<{ id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string }>).map((c) => ({
           id: c.id,
           name: c.name,
-          pricePerMonthUsd: 0,
+          pricePerMonthUsd: c.pricePerMonthUsd ?? 0,
           cancelUrl: c.cancelUrl || '#',
+          cadence: c.cadence,
+          nextChargeAt: c.nextChargeAt,
         }));
         setCustomItems(mapped);
         // Ensure visibility when suggestions are off
         const customIds = mapped.map((m) => m.id);
         setDetectedIds((prev) => Array.from(new Set([...prev, ...customIds])));
+      }
+      if (Array.isArray(data?.removed)) {
+        setRemovedIds(data.removed as string[]);
       }
     }
     fetchSaved();
@@ -284,7 +289,13 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
                  // Remove completely
                  setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(sub)));
                  removeCustomLocal(sub.id);
-                 setRemovedIds((prev) => Array.from(new Set([...prev, sub.id])));
+                 setRemovedIds((prev) => {
+                   const next = Array.from(new Set([...prev, sub.id]));
+                   if (session) {
+                     fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ removedIds: next }) });
+                   }
+                   return next;
+                 });
                  setDetectedIds((prev) => prev.filter((id) => id !== sub.id));
                }}
               onEditPrice={() => setEditTarget(sub)}
@@ -427,6 +438,9 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           const newItem: Subscription = { id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#' };
           setCustomItems((prev) => [...prev, newItem]);
           upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail, notifyPush });
+          if (session) {
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id, name: finalName, cancelUrl: '#', pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
+          }
           setTrackingOpen(false);
         }}
       />
@@ -449,11 +463,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
           upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail, notifyPush });
           if (session) {
-            fetch('/api/subscriptions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ customAdd: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl } }),
-            });
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl, pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
           }
           setPendingNewId(null);
         }}

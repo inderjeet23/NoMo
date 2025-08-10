@@ -24,8 +24,10 @@ export async function GET() {
   const canceled = canceledDoc.exists ? canceledDoc.data()?.ids ?? [] : [];
   const customSnap = await adminDb.collection('users').doc(email).collection('subscriptions').doc('custom').get();
   const custom = customSnap.exists ? (customSnap.data()?.list ?? []) : [];
+  const removedSnap = await adminDb.collection('users').doc(email).collection('subscriptions').doc('removed').get();
+  const removed = removedSnap.exists ? (removedSnap.data()?.ids ?? []) : [];
   return new Response(
-    JSON.stringify({ subscriptions: data, prefs, canceled, custom }),
+    JSON.stringify({ subscriptions: data, prefs, canceled, custom, removed }),
     { headers: { 'Content-Type': 'application/json' } }
   );
 }
@@ -37,10 +39,12 @@ export async function POST(req: Request) {
   }
   const email = session.user.email;
   const body = await req.json();
-  const { prefs, canceledIds, customAdd } = body as {
+  const { prefs, canceledIds, removedIds, customAdd, customUpsert } = body as {
     prefs?: unknown;
     canceledIds?: string[];
-    customAdd?: { id: string; name: string; cancelUrl?: string };
+    removedIds?: string[];
+    customAdd?: { id: string; name: string; cancelUrl?: string }; // backward compat
+    customUpsert?: { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean };
   };
   const { adminDb } = await import('@/lib/firebaseAdmin');
   if (prefs && typeof prefs === 'object') {
@@ -49,6 +53,9 @@ export async function POST(req: Request) {
   if (Array.isArray(canceledIds)) {
     await adminDb.collection('users').doc(email).collection('subscriptions').doc('canceled').set({ ids: canceledIds, updatedAt: new Date() });
   }
+  if (Array.isArray(removedIds)) {
+    await adminDb.collection('users').doc(email).collection('subscriptions').doc('removed').set({ ids: removedIds, updatedAt: new Date() });
+  }
   if (customAdd && customAdd.id && customAdd.name) {
     const ref = adminDb.collection('users').doc(email).collection('subscriptions').doc('custom');
     const snap = await ref.get();
@@ -56,6 +63,16 @@ export async function POST(req: Request) {
     const exists = Array.isArray(list) && list.find((x: { id: string }) => x?.id === customAdd.id);
     const next = exists ? list : [...list, { id: customAdd.id, name: customAdd.name, cancelUrl: customAdd.cancelUrl ?? '' }];
     await ref.set({ list: next, updatedAt: new Date() });
+  }
+  if (customUpsert && customUpsert.id && customUpsert.name) {
+    const ref = adminDb.collection('users').doc(email).collection('subscriptions').doc('custom');
+    const snap = await ref.get();
+    type Custom = { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean };
+    const list = (snap.exists ? (snap.data()?.list ?? []) : []) as Custom[];
+    const idx = list.findIndex((x) => x.id === customUpsert.id);
+    if (idx >= 0) list[idx] = { ...list[idx], ...customUpsert };
+    else list.push(customUpsert as Custom);
+    await ref.set({ list, updatedAt: new Date() });
   }
   return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 }
