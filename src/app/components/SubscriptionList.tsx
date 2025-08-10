@@ -47,6 +47,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [editTarget, setEditTarget] = useState<Subscription | null>(null);
   const [pendingNewId, setPendingNewId] = useState<string | null>(null);
   const [trackingOpen, setTrackingOpen] = useState(false);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,11 +128,14 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
     return Array.from(map.values());
   }
 
-  // Notify parent when combined list changes (base + custom overrides)
+  // Notify parent when combined list changes (base + custom overrides) and when removals/cancellations change
   useEffect(() => {
     if (!onItemsChange) return;
-    onItemsChange(mergeByName(items, customItems));
-  }, [items, customItems, onItemsChange]);
+    const merged = mergeByName(items, customItems)
+      .filter((s) => !cancelledIds.includes(s.id))
+      .filter((s) => !removedIds.includes(s.id));
+    onItemsChange(merged);
+  }, [items, customItems, cancelledIds, removedIds, onItemsChange]);
 
   async function handleCancelClick(sub: Subscription) {
     const now = Date.now();
@@ -237,9 +241,6 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             </select>
           </div>
           <div className="flex items-center gap-2 flex-none ml-auto">
-            {prefs.hiddenIds.length > 0 && (
-              <button className="btn-quiet tap" onClick={() => updatePrefs({ hiddenIds: [] })}>Unhide all</button>
-            )}
             <button
               className="btn sm:btn tap h-10 px-4"
               onClick={()=>setAddOpen(true)}
@@ -268,8 +269,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       <ul className="space-y-4 sm:space-y-2">
          {sortItems(mergeByName(items, customItems))
           .filter((s) => !cancelledIds.includes(s.id))
-           // Always show suggestions; user can hide individually
-          .filter((s) => !prefs.hiddenIds.includes(s.id))
+          .filter((s) => !removedIds.includes(s.id))
           .map((sub) => (
             <SubscriptionCard
               key={sub.id}
@@ -281,10 +281,11 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               onGuide={() => handleGuide(sub)}
               onCancel={() => handleCancelClick(sub)}
                onHide={() => {
-                 // Remove completely (custom overrides by name will be removed; base suggestions hidden)
+                 // Remove completely
                  setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(sub)));
                  removeCustomLocal(sub.id);
-                 updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] });
+                 setRemovedIds((prev) => Array.from(new Set([...prev, sub.id])));
+                 setDetectedIds((prev) => prev.filter((id) => id !== sub.id));
                }}
               onEditPrice={() => setEditTarget(sub)}
             />

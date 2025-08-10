@@ -53,7 +53,7 @@ export default function AddServiceModal({ open, onClose, onSelect }: { open: boo
           placeholder="Search services (e.g., Netflix)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={(e) => { /* focus only when user taps explicitly */ }}
+          onFocus={() => { /* focus only when user taps explicitly */ }}
           className="w-full rounded-lg bg-app border border-app px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
         />
         <div className="mt-3 relative">

@@ -44,7 +44,7 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
           {isGuiding ? 'Generating…' : 'Guide Me'}
         </button>
         <button onClick={onCancel} className="btn btn-danger w-full sm:w-auto h-11 tap active:animate-[wiggle_200ms_ease-in-out]">🛑 Open cancel page</button>
-        <button onClick={onHide} className="btn-quiet h-11 tap inline-flex items-center justify-center">✖ Hide</button>
+        <button onClick={onHide} className="btn-quiet h-11 tap inline-flex items-center justify-center">✖ Remove</button>
       </div>
     </li>
   );
