@@ -189,7 +189,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       ) : (
         <div className="flex items-center justify-between mb-6 bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
           <div className="font-semibold">Connected as {session.user?.email}</div>
-          <button onClick={scanInbox} className="btn btn-secondary">🔎 Scan Inbox</button>
+          <button onClick={scanInbox} className="btn btn-secondary tap">🔎 Find my subscriptions</button>
         </div>
       )}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -247,8 +247,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
               <button onClick={() => handleGuide(sub)} className="btn btn-secondary btn-lg sm:btn tap" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
                 {loadingGuideId === sub.id ? 'Guiding…' : '🧭 Guide Me'}
               </button>
-              <button onClick={() => handleCancelClick(sub)} className="btn btn-lg sm:btn tap" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
-              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800 tap" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>Hide</button>
+              <button onClick={() => handleCancelClick(sub)} className="btn btn-danger btn-lg sm:btn tap hover:animate-[wiggle_200ms_ease-in-out]" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
+              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800 tap inline-flex items-center gap-1" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>👁️‍🗨️ Hide</button>
             </div>
           </li>
         ))}
