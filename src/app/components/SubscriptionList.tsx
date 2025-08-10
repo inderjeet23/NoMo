@@ -9,6 +9,7 @@ import { track } from '@/lib/analytics';
 import confetti from 'canvas-confetti';
 import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 import { getPrefs, setPrefs, prefsExists, type Preferences } from '@/lib/prefs';
+import AddServiceModal from './AddServiceModal';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -33,6 +34,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [monthlySavings, setMonthlySavings] = useState<number>(0);
   const [hasScanned, setHasScanned] = useState(false);
   const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], showSuggestions: true, sort: 'name' });
+  const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
+  const [addOpen, setAddOpen] = useState(false);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,6 +74,17 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     }
     fetchSaved();
   }, [session]);
+
+  // Load directory options from CSV on mount
+  useEffect(() => {
+    async function loadDir() {
+      const res = await fetch('/api/directory');
+      if (!res.ok) return;
+      const data = await res.json();
+      setDirectory(Array.isArray(data?.options) ? data.options : []);
+    }
+    loadDir();
+  }, []);
 
   async function handleCancelClick(sub: Subscription) {
     const now = Date.now();
@@ -183,6 +197,9 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
             <button className="rounded-lg px-2 py-1 border border-neutral-800 hover:bg-neutral-800" onClick={() => updatePrefs({ hiddenIds: [] })}>
               Unhide all
             </button>
+          )}
+          {directory.length > 0 && (
+            <button className="rounded-lg px-2 py-1 border border-neutral-800 hover:bg-neutral-800" onClick={()=>setAddOpen(true)}>Add service</button>
           )}
         </div>
         {hasScanned && (
@@ -302,6 +319,24 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           </ul>
         </div>
       )}
+
+      <AddServiceModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSelect={(opt) => {
+          updatePrefs({ showSuggestions: true });
+          if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
+          // persist selection if signed in
+          if (session) {
+            fetch('/api/subscriptions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ customAdd: { id: opt.id, name: opt.name, cancelUrl: opt.cancelUrl } }),
+            });
+          }
+          announce(`Added ${opt.name}`);
+        }}
+      />
     </section>
   );
 }
