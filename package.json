@@ -13,6 +13,7 @@
     "canvas-confetti": "^1.9.3",
     "dompurify": "^3.2.6",
     "firebase": "^12.1.0",
+    "firebase-admin": "^13.4.0",
     "googleapis": "^155.0.1",
     "marked": "^16.1.2",
     "next": "15.4.6",

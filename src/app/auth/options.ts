@@ -30,6 +30,9 @@ export const auth: NextAuthOptions = {
       return session as typeof session & { accessToken?: string };
     },
   },
+  pages: {
+    signIn: '/onboarding',
+  },
 };
 
 

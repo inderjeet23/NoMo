@@ -3,6 +3,9 @@ import { NextRequest } from "next/server";
 import { auth } from "../../auth/options";
 import { google } from "googleapis";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(_req: NextRequest) {
   const session = await getServerSession(auth);
   if (!session) {
@@ -53,6 +56,13 @@ export async function POST(_req: NextRequest) {
         }
       }
     }
+
+    // Persist to Firestore by user email
+    const userEmail = session.user?.email || 'unknown';
+    const { adminDb } = await import('@/lib/firebaseAdmin');
+    const userDoc = adminDb.collection('users').doc(userEmail);
+    await userDoc.set({ email: userEmail }, { merge: true });
+    await userDoc.collection('subscriptions').doc('detected').set({ list: found, updatedAt: new Date() });
 
     return new Response(JSON.stringify({ subscriptions: found }), {
       headers: { "Content-Type": "application/json" },

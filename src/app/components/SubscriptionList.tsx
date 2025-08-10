@@ -40,6 +40,19 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     return () => window.removeEventListener('focus', onFocus);
   }, [activeService]);
 
+  // On sign-in, fetch saved subscriptions
+  useEffect(() => {
+    async function fetchSaved() {
+      if (!session) return;
+      const res = await fetch('/api/subscriptions');
+      if (!res.ok) return;
+      const data = await res.json();
+      const ids: string[] = (data.subscriptions ?? []).map((s: { id: string }) => s.id);
+      setDetectedIds(ids);
+    }
+    fetchSaved();
+  }, [session]);
+
   async function handleCancelClick(sub: Subscription) {
     const now = Date.now();
     if (now - cancelClickBlockRef.current < 800) return; // debounce
