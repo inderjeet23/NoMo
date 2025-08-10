@@ -29,9 +29,10 @@ export default function Home() {
     (async () => {
       const initial = await getUserSubs(uid);
       const base = initial.length ? initial : subscriptions;
-      if (!initial.length) await setUserSubs(uid, base);
+      // Optimistic: apply server items immediately to avoid flash of defaults
       setAllSubs(base);
       setVisibleActive(base);
+      if (!initial.length) await setUserSubs(uid, base);
       unsubscribe = listenUserSubs(uid, (items) => {
         const list = items && items.length ? items : subscriptions;
         setAllSubs(list);

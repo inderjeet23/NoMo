@@ -12,6 +12,7 @@ import { getPrefs, setPrefs, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
 import EditPriceModal from './EditPriceModal';
 import { upsertCustomLocal, getCustomLocal, removeCustomLocal } from '@/lib/customLocal';
+import { upsertUserSub, removeUserSub } from '@/lib/firestoreSubs';
 import SubscriptionCard from './SubscriptionCard';
 import BottomSheet from './BottomSheet';
 import { stripHtml } from './utils/stripHtml';
@@ -38,7 +39,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [detectedIds, setDetectedIds] = useState<string[]>([]);
   const [cancelledIds, setCancelledIds] = useState<string[]>([]);
   const [monthlySavings, setMonthlySavings] = useState<number>(0);
-  const [hasScanned, setHasScanned] = useState(false);
+  // Gmail scanning temporarily out of scope
   const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], sort: 'name' });
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -79,20 +80,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         setPrefs(merged);
         setPrefsState(merged);
       }
-      if (Array.isArray(data?.custom)) {
-        const mapped: Subscription[] = (data.custom as Array<{ id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string }>).map((c) => ({
-          id: c.id,
-          name: c.name,
-          pricePerMonthUsd: c.pricePerMonthUsd ?? 0,
-          cancelUrl: c.cancelUrl || '#',
-          cadence: c.cadence,
-          nextChargeAt: c.nextChargeAt,
-        }));
-        setCustomItems(mapped);
-        // Ensure visibility when suggestions are off
-        const customIds = mapped.map((m) => m.id);
-        setDetectedIds((prev) => Array.from(new Set([...prev, ...customIds])));
-      }
+      // When authenticated we use Firestore as the source of items via parent.
       if (Array.isArray(data?.removed)) {
         setRemovedIds(data.removed as string[]);
       }
@@ -199,16 +187,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
     track('connect_gmail_clicked');
   }
 
-  async function scanInbox() {
-    const res = await fetch('/api/scan', { method: 'POST' });
-    if (!res.ok) return announce('Scan failed');
-    const data = await res.json();
-    const found = (data.subscriptions as Array<{ id: string }> | undefined) ?? [];
-    setDetectedIds(found.map((f) => f.id));
-    announce(`Found ${found.length} subscriptions`);
-    track('scan_inbox_completed', { found: found.length });
-    setHasScanned(true);
-  }
+  // scanInbox removed for now
 
   function updatePrefs(next: Partial<Preferences>) {
     const merged: Preferences = { ...prefs, ...next };
@@ -230,9 +209,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   return (
     <section className="w-full max-w-4xl mx-auto">
       {session ? (
-        <div className="flex items-center justify-between mb-6 card p-5">
+        <div className="flex items-center justify-start mb-6 card p-5">
           <div className="font-semibold">Connected as {session.user?.email}</div>
-          <button onClick={scanInbox} className="btn btn-secondary tap">🔎 Find my subscriptions</button>
         </div>
       ) : null}
       <div className="mb-4">
@@ -262,13 +240,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             </button>
           </div>
         </div>
-        {hasScanned && (
-          <div className="mt-2">
-            <button onClick={handleInsights} className="btn btn-secondary" aria-label="Get insights from your subscriptions" disabled={loadingInsights}>
-              {loadingInsights ? 'Loading…' : '✨ Get Insights'}
-            </button>
-          </div>
-        )}
+        {/* Insights button hidden until scan is re-enabled */}
       </div>
 
       <ul className="space-y-4 sm:space-y-2">
@@ -285,7 +257,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
               onGuide={() => handleGuide(sub)}
               onCancel={() => handleCancelClick(sub)}
-               onHide={() => {
+               onHide={async () => {
                  // Remove completely
                  setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(sub)));
                  removeCustomLocal(sub.id);
@@ -297,6 +269,10 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
                    return next;
                  });
                  setDetectedIds((prev) => prev.filter((id) => id !== sub.id));
+                 const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
+                 if (uid) {
+                   await removeUserSub(uid, sub.id);
+                 }
                }}
               onEditPrice={() => setEditTarget(sub)}
             />
@@ -412,11 +388,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           });
           // persist selection if signed in
           if (session) {
-            fetch('/api/subscriptions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ customAdd: { id: opt.id, name: opt.name, cancelUrl: opt.cancelUrl } }),
-            });
+            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
+            upsertUserSub(uid, newItem);
           }
           announce(`Added ${opt.name}`);
           setAddOpen(false);
@@ -439,6 +412,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           setCustomItems((prev) => [...prev, newItem]);
           upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail, notifyPush });
           if (session) {
+            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
+            upsertUserSub(uid, newItem);
             fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id, name: finalName, cancelUrl: '#', pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
           }
           setTrackingOpen(false);
@@ -463,6 +438,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
           upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail, notifyPush });
           if (session) {
+            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
+            upsertUserSub(uid, { ...editTarget, pricePerMonthUsd: price, cadence, nextChargeAt });
             fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl, pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
           }
           setPendingNewId(null);
