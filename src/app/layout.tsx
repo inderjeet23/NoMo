@@ -34,6 +34,15 @@ export default function RootLayout({
             <BottomBar />
           </div>
           <div className="pb-20 sm:pb-0">{children}</div>
+          <footer className="text-center text-xs text-neutral-500 py-8">
+            <div className="flex items-center justify-center gap-3">
+              <span>© {new Date().getFullYear()} NoMo</span>
+              <span>•</span>
+              <a className="underline underline-offset-2 hover:opacity-80" href="/privacy">Privacy</a>
+              <span>•</span>
+              <a className="underline underline-offset-2 hover:opacity-80" href="/terms">Terms</a>
+            </div>
+          </footer>
         </Providers>
       </body>
     </html>

@@ -22,6 +22,11 @@ export default function AccountPage() {
             </div>
           )}
         </section>
+        <footer className="text-xs text-neutral-400 flex items-center gap-3 justify-center">
+          <a className="underline underline-offset-2 hover:opacity-80" href="/privacy">Privacy Policy</a>
+          <span>•</span>
+          <a className="underline underline-offset-2 hover:opacity-80" href="/terms">Terms of Service</a>
+        </footer>
       </div>
     </main>
   );

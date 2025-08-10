@@ -50,7 +50,7 @@ export default function Home() {
         <OverviewWidgets items={visibleActive} />
         <SubscriptionList
           items={allSubs}
-          onItemsChange={(list)=>{ setAllSubs(list); setVisibleActive(list); }}
+          onItemsChange={(list)=>{ setVisibleActive(list); }}
         />
 
         <section className="mt-8 card p-6">
