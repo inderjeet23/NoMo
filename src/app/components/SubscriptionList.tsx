@@ -7,6 +7,7 @@ import { marked } from 'marked';
 import ConfirmModal from './ConfirmModal';
 import { track } from '@/lib/analytics';
 import confetti from 'canvas-confetti';
+import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -27,6 +28,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [loadingGuideId, setLoadingGuideId] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [detectedIds, setDetectedIds] = useState<string[]>([]);
+  const [cancelledIds, setCancelledIds] = useState<string[]>([]);
+  const [monthlySavings, setMonthlySavings] = useState<number>(0);
   const [hasScanned, setHasScanned] = useState(false);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
@@ -139,9 +142,12 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       </div>
 
       <ul className="space-y-2">
-        {items.map((sub) => (
-          <li key={sub.id} className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-            <div>
+        {items.filter((s) => !cancelledIds.includes(s.id)).map((sub) => (
+          <li key={sub.id} className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+            <div className="flex items-center gap-3">
+              {(() => { const a = getBrandAvatarStyle(sub.name); return (
+                <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
+              ); })()}
               <div className="font-medium flex items-center gap-2">
                 <span>{sub.name}</span>
                 {detectedIds.includes(sub.id) && (
@@ -156,7 +162,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
               <button onClick={() => handleGuide(sub)} className="btn btn-secondary" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
                 {loadingGuideId === sub.id ? 'Guiding…' : '🧭 Guide Me'}
               </button>
-              <button onClick={() => handleCancelClick(sub)} className="btn" aria-label={`Open ${sub.name} cancel page`}>🛑 Cancel Page</button>
+              <button onClick={() => handleCancelClick(sub)} className="btn" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
             </div>
           </li>
         ))}
@@ -183,8 +189,15 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       <ConfirmModal
         open={modalOpen}
         serviceName={activeService?.name ?? ''}
+        title={activeService ? `Welcome back! Did you successfully cancel ${activeService.name}?` : undefined}
+        confirmLabel="Yes, I canceled it"
+        cancelLabel="I had trouble"
         onConfirm={() => {
           setModalOpen(false);
+          if (activeService) {
+            setCancelledIds((prev) => prev.includes(activeService.id) ? prev : [...prev, activeService.id]);
+            setMonthlySavings((prev) => prev + (activeService.pricePerMonthUsd || 0));
+          }
           setActiveService(null);
           announce('Marked as cancelled');
           if (window.matchMedia && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -196,6 +209,33 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           announce('We\'ll help you with concierge support.');
         }}
       />
+
+      {cancelledIds.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Canceled</h3>
+            <div className="text-sm text-green-300 font-semibold">Monthly Savings: {monthlySavings.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
+          </div>
+          <ul className="space-y-2">
+            {items.filter((s) => cancelledIds.includes(s.id)).map((sub) => (
+              <li key={sub.id} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-2xl p-4 opacity-70">
+                <div className="flex items-center gap-3">
+                  {(() => { const a = getBrandAvatarStyle(sub.name); return (
+                    <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
+                  ); })()}
+                  <div className="font-medium flex items-center gap-2 line-through">
+                    <span>{sub.name}</span>
+                  </div>
+                  <div className="text-sm text-neutral-400">
+                    {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
+                  </div>
+                </div>
+                <div className="text-sm text-neutral-400">Canceled</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
