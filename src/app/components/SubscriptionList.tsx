@@ -114,13 +114,21 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
     }
   }, []);
 
+  function normalizeKey(s: Subscription): string {
+    return (s.name || s.id).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  }
+
+  function mergeByName(base: Subscription[], custom: Subscription[]): Subscription[] {
+    const map = new Map<string, Subscription>();
+    for (const b of base) map.set(normalizeKey(b), b);
+    for (const c of custom) map.set(normalizeKey(c), c); // custom overrides base
+    return Array.from(map.values());
+  }
+
   // Notify parent when combined list changes (base + custom overrides)
   useEffect(() => {
     if (!onItemsChange) return;
-    const byId = new Map<string, Subscription>();
-    for (const b of items) byId.set(b.id, b);
-    for (const c of customItems) byId.set(c.id, c);
-    onItemsChange(Array.from(byId.values()));
+    onItemsChange(mergeByName(items, customItems));
   }, [items, customItems, onItemsChange]);
 
   async function handleCancelClick(sub: Subscription) {
@@ -256,7 +264,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       </div>
 
       <ul className="space-y-4 sm:space-y-2">
-         {sortItems([...customItems, ...items])
+         {sortItems(mergeByName(items, customItems))
           .filter((s) => !cancelledIds.includes(s.id))
            // Always show suggestions; user can hide individually
           .filter((s) => !prefs.hiddenIds.includes(s.id))
@@ -376,8 +384,11 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         onSelect={(opt) => {
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
-          const newItem: Subscription = { id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
-          setCustomItems((prev) => (prev.find((p) => p.id === opt.id) ? prev : [...prev, newItem]));
+          const newItem: Subscription = { id: normalizeKey({ id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' }), name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
+          setCustomItems((prev) => {
+            const exists = prev.find((p) => normalizeKey(p) === normalizeKey(newItem));
+            return exists ? prev : [...prev, newItem];
+          });
           // persist selection if signed in
           if (session) {
             fetch('/api/subscriptions', {
