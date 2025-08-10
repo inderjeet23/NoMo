@@ -18,15 +18,23 @@ export const auth: NextAuthOptions = {
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token;
+        // surface a stable user id for client usage
+        const candidate = (profile as { sub?: string } | undefined)?.sub || (token as unknown as { email?: string }).email;
+        if (candidate) {
+          (token as unknown as { sub?: string }).sub = candidate;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       (session as unknown as { accessToken?: string }).accessToken =
         (token as unknown as { accessToken?: string }).accessToken;
+      (session.user as unknown as { id?: string }).id =
+        (token as unknown as { sub?: string; email?: string }).sub ||
+        (token as unknown as { email?: string }).email;
       return session as typeof session & { accessToken?: string };
     },
   },

@@ -15,6 +15,12 @@ service cloud.firestore {
       // No reads/updates/deletes from clients
       allow read, update, delete: if false;
     }
+
+    // Per-user subscriptions doc. The document ID is the user's email.
+    match /subscriptions/{userId} {
+      // Only the authenticated user with matching email can read/write their doc
+      allow read, write: if request.auth != null && request.auth.token.email == userId;
+    }
   }
 }
 
