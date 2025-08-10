@@ -26,7 +26,7 @@ async function callGemini(prompt: string, options?: { json?: boolean; system?: s
   return options?.json ? res.json() : res.text();
 }
 
-export default function SubscriptionList({ items }: { items: Subscription[] }) {
+export default function SubscriptionList({ items, onItemsChange }: { items: Subscription[]; onItemsChange?: (items: Subscription[]) => void }) {
   const { data: session } = useSession();
   const [modalOpen, setModalOpen] = useState(false);
   const [activeService, setActiveService] = useState<Subscription | null>(null);
@@ -44,6 +44,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [addOpen, setAddOpen] = useState(false);
   const [customItems, setCustomItems] = useState<Subscription[]>([]);
   const [editTarget, setEditTarget] = useState<Subscription | null>(null);
+  const [pendingNewId, setPendingNewId] = useState<string | null>(null);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -113,6 +114,15 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     }
   }, []);
 
+  // Notify parent when combined list changes (base + custom overrides)
+  useEffect(() => {
+    if (!onItemsChange) return;
+    const byId = new Map<string, Subscription>();
+    for (const b of items) byId.set(b.id, b);
+    for (const c of customItems) byId.set(c.id, c);
+    onItemsChange(Array.from(byId.values()));
+  }, [items, customItems, onItemsChange]);
+
   async function handleCancelClick(sub: Subscription) {
     const now = Date.now();
     if (now - cancelClickBlockRef.current < 800) return; // debounce
@@ -122,8 +132,12 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     track('cancel_page_open', { service: sub.id });
   }
 
+  let guideDebounce = 0;
   async function handleGuide(sub: Subscription) {
     try {
+      const now = Date.now();
+      if (now - guideDebounce < 700) return;
+      guideDebounce = now;
       setLoadingGuideId(sub.id);
       const system = 'You are NoMo, a helpful assistant that writes concise, step-by-step cancellation guides. Keep steps short and accurate.';
       const prompt = `Create a simple checklist with headings for cancelling ${sub.name}. Include the exact navigation and links if known. If there are fees, warn the user. Close with encouragement.`;
@@ -267,7 +281,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         actions={guideHtml ? (
           <button
             className="btn-quiet text-xs px-2 py-1"
-            onClick={() => { if (guideHtml) navigator.clipboard.writeText(stripHtml(guideHtml)); }}
+            onClick={() => { if (guideHtml) { navigator.clipboard.writeText(stripHtml(guideHtml)); announce('Guide copied'); } }}
           >
             Copy guide
           </button>
@@ -362,7 +376,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         onSelect={(opt) => {
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
-          setCustomItems((prev) => (prev.find((p) => p.id === opt.id) ? prev : [...prev, { id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' }]));
+          const newItem: Subscription = { id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
+          setCustomItems((prev) => (prev.find((p) => p.id === opt.id) ? prev : [...prev, newItem]));
           // persist selection if signed in
           if (session) {
             fetch('/api/subscriptions', {
@@ -372,6 +387,9 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
             });
           }
           announce(`Added ${opt.name}`);
+          setAddOpen(false);
+          setEditTarget(newItem);
+          setPendingNewId(newItem.id);
         }}
       />
 
@@ -381,7 +399,13 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         price={editTarget?.pricePerMonthUsd ?? 0}
         cadence={(editTarget?.cadence as 'month'|'year') ?? 'month'}
         nextChargeAt={editTarget?.nextChargeAt}
-        onClose={() => setEditTarget(null)}
+        requirePrice={!!pendingNewId}
+        onDiscard={() => {
+          if (!pendingNewId) return;
+          setCustomItems((prev) => prev.filter((x) => x.id !== pendingNewId));
+          setPendingNewId(null);
+        }}
+        onClose={() => { setEditTarget(null); setPendingNewId(null); }}
         onSave={({ price, cadence, nextChargeAt, notifyEmail, notifyPush }) => {
           if (!editTarget) return;
           setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
@@ -393,6 +417,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
               body: JSON.stringify({ customAdd: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl } }),
             });
           }
+          setPendingNewId(null);
         }}
       />
     </section>

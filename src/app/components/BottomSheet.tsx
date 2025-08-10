@@ -72,7 +72,7 @@ export default function BottomSheet({ open, title, onClose, children, actions }:
             <button className="px-2 py-1 rounded-md hover:bg-[color:var(--surface)]" aria-label="Close" onClick={onClose}>✖</button>
           </div>
         </div>
-        <div className="p-4 max-h-[70vh] sm:max-h-[70vh] overflow-auto overscroll-contain">
+        <div className="p-4 max-h-[70vh] sm:max-h-[70vh] overflow-auto overscroll-contain" role="region" aria-label={title}>
           {children}
         </div>
       </div>
