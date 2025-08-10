@@ -10,6 +10,8 @@ import confetti from 'canvas-confetti';
 import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 import { getPrefs, setPrefs, prefsExists, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
+import EditPriceModal from './EditPriceModal';
+import { upsertCustomLocal, getCustomLocal } from '@/lib/customLocal';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -37,6 +39,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [customItems, setCustomItems] = useState<Subscription[]>([]);
+  const [editTarget, setEditTarget] = useState<Subscription | null>(null);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -97,6 +100,17 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       setDirectory(Array.isArray(data?.options) ? data.options : []);
     }
     loadDir();
+    // load local custom prices
+    const local = getCustomLocal();
+    if (local.length) {
+      setCustomItems((prev) => {
+        const map = new Map(prev.map((p) => [p.id, p] as const));
+        for (const c of local) {
+          map.set(c.id, { id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' });
+        }
+        return Array.from(map.values());
+      });
+    }
   }, []);
 
   async function handleCancelClick(sub: Subscription) {
@@ -239,8 +253,9 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
                   <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-300 text-xs font-semibold px-2 py-0.5 border border-green-700/40">Detected</span>
                 )}
               </div>
-              <div className="text-base sm:text-sm text-neutral-200">
+              <div className="text-base sm:text-sm text-neutral-200 inline-flex items-center gap-2">
                 {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
+                <button className="text-xs underline underline-offset-2 hover:text-white tap" onClick={()=>setEditTarget(sub)}>Edit</button>
               </div>
             </div>
             <div className="flex gap-2 items-center col-span-2 sm:col-span-1">
@@ -350,6 +365,25 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
             });
           }
           announce(`Added ${opt.name}`);
+        }}
+      />
+
+      <EditPriceModal
+        open={!!editTarget}
+        name={editTarget?.name ?? ''}
+        price={editTarget?.pricePerMonthUsd ?? 0}
+        onClose={() => setEditTarget(null)}
+        onSave={(p) => {
+          if (!editTarget) return;
+          setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: p } : x));
+          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: p, cancelUrl: editTarget.cancelUrl });
+          if (session) {
+            fetch('/api/subscriptions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ customAdd: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl } }),
+            });
+          }
         }}
       />
     </section>
