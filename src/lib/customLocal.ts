@@ -3,6 +3,10 @@ export type CustomLocal = {
   name: string;
   pricePerMonthUsd: number;
   cancelUrl?: string;
+  cadence?: 'month' | 'year';
+  nextChargeAt?: string;
+  notifyEmail?: boolean;
+  notifyPush?: boolean;
 };
 
 const KEY = 'nomo.custom.v1';

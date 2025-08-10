@@ -44,17 +44,17 @@ export default function AddServiceModal({ open, onClose, onSelect }: { open: boo
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-neutral-900 border border-neutral-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg p-4 transform transition-transform duration-200 ease-out translate-y-0 sm:translate-y-0">
+      <div className="relative card rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg p-4 transform transition-transform duration-200 ease-out translate-y-0 sm:translate-y-0">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold">Add a service</h2>
-          <button className="px-2 py-1 rounded-md hover:bg-neutral-800 tap" onClick={onClose} aria-label="Close add service">✖</button>
+          <button className="px-2 py-1 rounded-md hover:bg-[color:var(--surface)] tap" onClick={onClose} aria-label="Close add service">✖</button>
         </div>
         <input
           autoFocus
           placeholder="Search services (e.g., Netflix)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-lg bg-neutral-950 border border-neutral-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+          className="w-full rounded-lg bg-app border border-app px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
         />
         <div className="mt-3 relative">
           {results.length > 0 && (
@@ -62,7 +62,7 @@ export default function AddServiceModal({ open, onClose, onSelect }: { open: boo
               {results.map((opt) => (
                 <button
                   key={opt.id}
-                  className="w-full text-left rounded-lg px-3 py-3 hover:bg-neutral-800 tap"
+                className="w-full text-left rounded-lg px-3 py-3 hover:bg-[color:var(--surface)] tap"
                   onClick={() => {
                     onSelect(opt);
                     onClose();
@@ -83,7 +83,7 @@ export default function AddServiceModal({ open, onClose, onSelect }: { open: boo
                     {grouped[letter]!.slice(0, 10).map((opt) => (
                       <button
                         key={opt.id}
-                        className="w-full text-left rounded-lg px-3 py-3 hover:bg-neutral-800 tap"
+                        className="w-full text-left rounded-lg px-3 py-3 hover:bg-[color:var(--surface)] tap"
                         onClick={() => {
                           onSelect(opt);
                           onClose();

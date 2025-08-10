@@ -5,6 +5,8 @@ export type Subscription = {
   cancelUrl: string;
   websiteUrl?: string;
   renewsInDays?: number;
+  cadence?: 'month' | 'year';
+  nextChargeAt?: string; // ISO date string
 };
 
 export const subscriptions: Subscription[] = [

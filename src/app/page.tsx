@@ -5,6 +5,7 @@ import ConciergeForm from "./components/ConciergeForm";
 import { subscriptions } from "@/lib/data";
 import { getLocalSubscriptions } from "@/lib/localSubs";
 import { useEffect, useState } from "react";
+import OverviewWidgets from "./components/OverviewWidgets";
 
 export default function Home() {
   const [allSubs, setAllSubs] = useState(subscriptions);
@@ -20,13 +21,14 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black text-white px-3 sm:px-4 pb-24">
+    <main className="min-h-screen bg-app text-app px-3 sm:px-4 pb-24">
       <Header />
 
       <div className="w-full max-w-5xl mx-auto grid gap-6 sm:gap-8">
+        <OverviewWidgets items={allSubs} />
         <SubscriptionList items={allSubs} />
 
-        <section className="mt-8 bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
+        <section className="mt-8 card p-6">
           <h3 className="text-xl font-extrabold mb-3">Still need help? ✉️ Request Concierge</h3>
           <ConciergeForm />
         </section>

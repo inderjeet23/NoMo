@@ -55,7 +55,7 @@ export default function ConciergeForm() {
         required
         aria-invalid={email.length > 0 && !isValidEmail(email)}
         placeholder="you@example.com"
-        className="flex-1 rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+        className="flex-1 rounded-lg bg-app border border-app px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-600"
       />
       <button ref={buttonRef} type="submit" className="btn" disabled={loading || !isValidEmail(email)}>
         {loading ? 'Sending…' : '🤝 Request Concierge'}

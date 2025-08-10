@@ -12,6 +12,7 @@ import { getPrefs, setPrefs, prefsExists, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
 import EditPriceModal from './EditPriceModal';
 import { upsertCustomLocal, getCustomLocal } from '@/lib/customLocal';
+import SubscriptionCard from './SubscriptionCard';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -195,44 +196,48 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   return (
     <section className="w-full max-w-4xl mx-auto">
       {!session ? (
-        <div className="flex flex-col items-center justify-center gap-3 mb-6 bg-neutral-950 border border-neutral-800 rounded-2xl p-6">
+        <div className="flex flex-col items-center justify-center gap-3 mb-6 card p-6">
           <h3 className="text-xl font-extrabold">Connect your email</h3>
           <p className="text-neutral-300 text-sm">We never see your password. You&apos;ll securely sign in with Google.</p>
           <button onClick={connectEmail} className="btn">🔐 Connect Gmail</button>
         </div>
       ) : (
-        <div className="flex items-center justify-between mb-6 bg-neutral-950 border border-neutral-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-6 card p-4">
           <div className="font-semibold">Connected as {session.user?.email}</div>
           <button onClick={scanInbox} className="btn btn-secondary tap">🔎 Find my subscriptions</button>
         </div>
       )}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h2 className="text-2xl font-extrabold">Your Subscriptions</h2>
-        <div className="flex items-center gap-3 text-sm">
+      <div className="mb-4">
+        <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
+        <div className="toolbar-card rounded-xl p-3 flex items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-4">
           <label className="inline-flex items-center gap-2 tap">
             <input className="w-5 h-5" type="checkbox" checked={prefs.showSuggestions} onChange={(e)=>updatePrefs({ showSuggestions: e.target.checked })} />
             <span>Show suggestions</span>
           </label>
           <label className="inline-flex items-center gap-2">
-            <span>Sort</span>
-            <select className="bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-2 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+            <span className="text-neutral-400">Sort</span>
+            <select className="bg-app border border-app rounded-lg px-2 py-2 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
               <option value="name">Name</option>
               <option value="price">Price</option>
             </select>
           </label>
-          {prefs.hiddenIds.length > 0 && (
-            <button className="rounded-lg px-3 py-2 border border-neutral-800 hover:bg-neutral-800 tap" onClick={() => updatePrefs({ hiddenIds: [] })}>
-              Unhide all
-            </button>
-          )}
-          {directory.length > 0 && (
-            <button className="rounded-lg px-3 py-2 border border-neutral-800 hover:bg-neutral-800 tap" onClick={()=>setAddOpen(true)}>Add service</button>
-          )}
+          </div>
+          <div className="flex items-center gap-2">
+            {prefs.hiddenIds.length > 0 && (
+              <button className="btn-quiet tap" onClick={() => updatePrefs({ hiddenIds: [] })}>Unhide all</button>
+            )}
+            {directory.length > 0 && (
+              <button className="btn tap" onClick={()=>setAddOpen(true)}>Add service</button>
+            )}
+          </div>
         </div>
         {hasScanned && (
-          <button onClick={handleInsights} className="btn btn-secondary" aria-label="Get insights from your subscriptions" disabled={loadingInsights}>
-            {loadingInsights ? 'Loading…' : '✨ Get Insights'}
-          </button>
+          <div className="mt-2">
+            <button onClick={handleInsights} className="btn btn-secondary" aria-label="Get insights from your subscriptions" disabled={loadingInsights}>
+              {loadingInsights ? 'Loading…' : '✨ Get Insights'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -242,40 +247,37 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           .filter((s) => prefs.showSuggestions ? true : detectedIds.includes(s.id))
           .filter((s) => !prefs.hiddenIds.includes(s.id))
           .map((sub) => (
-          <li key={sub.id} className="grid grid-cols-[auto_1fr] sm:flex sm:items-center sm:justify-between bg-neutral-900 border border-neutral-800 rounded-2xl p-4 gap-3">
-            <div className="flex items-center gap-3">
-              {(() => { const a = getBrandAvatarStyle(sub.name); return (
-                <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
-              ); })()}
-              <div className="font-medium flex items-center gap-2">
-                <span>{sub.name}</span>
-                {detectedIds.includes(sub.id) && (
-                  <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-300 text-xs font-semibold px-2 py-0.5 border border-green-700/40">Detected</span>
-                )}
-              </div>
-              <div className="text-base sm:text-sm text-neutral-200 inline-flex items-center gap-2">
-                {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
-                <button className="text-xs underline underline-offset-2 hover:text-white tap" onClick={()=>setEditTarget(sub)}>Edit</button>
-              </div>
-            </div>
-            <div className="flex gap-2 items-center col-span-2 sm:col-span-1">
-              <button onClick={() => handleGuide(sub)} className="btn btn-secondary btn-lg sm:btn tap" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
-                {loadingGuideId === sub.id ? 'Guiding…' : '🧭 Guide Me'}
-              </button>
-              <button onClick={() => handleCancelClick(sub)} className="btn btn-danger btn-lg sm:btn tap hover:animate-[wiggle_200ms_ease-in-out]" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
-              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800 tap inline-flex items-center gap-1" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>👁️‍🗨️ Hide</button>
-            </div>
-          </li>
+            <SubscriptionCard
+              key={sub.id}
+              sub={sub}
+              detected={detectedIds.includes(sub.id)}
+              isGuiding={loadingGuideId === sub.id}
+              onGuide={() => handleGuide(sub)}
+              onCancel={() => handleCancelClick(sub)}
+              onHide={() => updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}
+              onEditPrice={() => setEditTarget(sub)}
+            />
         ))}
       </ul>
 
-      {guideHtml && (
-        <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800">
+      {(guideHtml || loadingGuideId) && (
+        <div className="mt-6 card rounded-xl p-0 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-app">
             <div className="text-sm font-semibold">Step-by-step guide</div>
             <button aria-label="Close guide" className="text-sm px-2 py-1 rounded-lg hover:bg-neutral-800" onClick={()=>setGuideHtml(null)}>✖ Close</button>
           </div>
-          <div className="p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml }} />
+          {loadingGuideId ? (
+            <div className="p-4">
+              <div className="h-4 w-40 bg-[color:var(--surface)] rounded mb-3 animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
+                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
+                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml! }} />
+          )}
         </div>
       )}
 
@@ -283,7 +285,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         <div className="mt-6 space-y-3">
           <h3 className="text-lg font-semibold">Your Subscription Insights</h3>
           {insights.map((it, idx) => (
-            <div key={idx} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+            <div key={idx} className="card rounded-xl p-4">
               <div className="font-medium">{it.title}</div>
               <div className="text-neutral-300 text-sm">{it.body}</div>
             </div>
@@ -329,7 +331,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           </div>
           <ul className="space-y-2">
             {items.filter((s) => cancelledIds.includes(s.id)).map((sub) => (
-              <li key={sub.id} className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-2xl p-4 opacity-70">
+              <li key={sub.id} className="flex items-center justify-between card rounded-2xl p-4 opacity-70">
                 <div className="flex items-center gap-3">
                   {(() => { const a = getBrandAvatarStyle(sub.name); return (
                     <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
@@ -372,11 +374,13 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         open={!!editTarget}
         name={editTarget?.name ?? ''}
         price={editTarget?.pricePerMonthUsd ?? 0}
+        cadence={(editTarget?.cadence as 'month'|'year') ?? 'month'}
+        nextChargeAt={editTarget?.nextChargeAt}
         onClose={() => setEditTarget(null)}
-        onSave={(p) => {
+        onSave={({ price, cadence, nextChargeAt, notifyEmail, notifyPush }) => {
           if (!editTarget) return;
-          setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: p } : x));
-          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: p, cancelUrl: editTarget.cancelUrl });
+          setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
+          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail, notifyPush });
           if (session) {
             fetch('/api/subscriptions', {
               method: 'POST',
