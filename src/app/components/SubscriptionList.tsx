@@ -8,11 +8,13 @@ import ConfirmModal from './ConfirmModal';
 import { track } from '@/lib/analytics';
 import confetti from 'canvas-confetti';
 import { getBrandAvatarStyle } from '@/lib/brandAvatar';
-import { getPrefs, setPrefs, prefsExists, type Preferences } from '@/lib/prefs';
+import { getPrefs, setPrefs, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
 import EditPriceModal from './EditPriceModal';
 import { upsertCustomLocal, getCustomLocal } from '@/lib/customLocal';
 import SubscriptionCard from './SubscriptionCard';
+import BottomSheet from './BottomSheet';
+import { stripHtml } from './utils/stripHtml';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -29,6 +31,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeService, setActiveService] = useState<Subscription | null>(null);
   const [guideHtml, setGuideHtml] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [insights, setInsights] = useState<Array<{ title: string; body: string }> | null>(null);
   const [loadingGuideId, setLoadingGuideId] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -36,7 +39,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [cancelledIds, setCancelledIds] = useState<string[]>([]);
   const [monthlySavings, setMonthlySavings] = useState<number>(0);
   const [hasScanned, setHasScanned] = useState(false);
-  const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], showSuggestions: true, sort: 'name' });
+  const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], sort: 'name' });
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [customItems, setCustomItems] = useState<Subscription[]>([]);
@@ -55,12 +58,8 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
 
   // On sign-in, fetch saved subscriptions and prefs/canceled
   useEffect(() => {
-    // load prefs once on mount; if user is signed in and no prefs yet, default showSuggestions=false
+    // load prefs once on mount
     const existing = getPrefs();
-    if (session && !prefsExists()) {
-      existing.showSuggestions = false;
-      setPrefs(existing);
-    }
     setPrefsState(existing);
     async function fetchSaved() {
       if (!session) return;
@@ -131,9 +130,11 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       const md = await callGemini(prompt, { system });
       const html = DOMPurify.sanitize(marked(md) as string);
       setGuideHtml(html);
+      setSheetOpen(true);
       track('guide_generated', { service: sub.id });
     } catch (_e) {
       setGuideHtml('<p>Sorry, failed to load guide.</p>');
+      setSheetOpen(true);
     } finally {
       setLoadingGuideId(null);
     }
@@ -196,40 +197,39 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   return (
     <section className="w-full max-w-4xl mx-auto">
       {!session ? (
-        <div className="flex flex-col items-center justify-center gap-3 mb-6 card p-6">
+        <div className="flex flex-col items-center justify-center gap-4 mb-6 card p-6 text-center">
           <h3 className="text-xl font-extrabold">Connect your email</h3>
-          <p className="text-neutral-300 text-sm">We never see your password. You&apos;ll securely sign in with Google.</p>
-          <button onClick={connectEmail} className="btn">🔐 Connect Gmail</button>
+          <p className="text-neutral-500 text-sm">We never see your password. You&apos;ll securely sign in with Google.</p>
+          <button onClick={connectEmail} className="btn btn-lg sm:btn">🔐 Connect Gmail</button>
         </div>
       ) : (
-        <div className="flex items-center justify-between mb-6 card p-4">
+        <div className="flex items-center justify-between mb-6 card p-5">
           <div className="font-semibold">Connected as {session.user?.email}</div>
           <button onClick={scanInbox} className="btn btn-secondary tap">🔎 Find my subscriptions</button>
         </div>
       )}
       <div className="mb-4">
         <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
-        <div className="toolbar-card rounded-xl p-3 flex items-center justify-between gap-3 text-sm">
-          <div className="flex items-center gap-4">
-          <label className="inline-flex items-center gap-2 tap">
-            <input className="w-5 h-5" type="checkbox" checked={prefs.showSuggestions} onChange={(e)=>updatePrefs({ showSuggestions: e.target.checked })} />
-            <span>Show suggestions</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
+        <div className="toolbar-card rounded-xl p-3 sm:p-4 flex items-center gap-3 text-sm overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 flex-none">
             <span className="text-neutral-400">Sort</span>
-            <select className="bg-app border border-app rounded-lg px-2 py-2 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+            <select className="bg-app border border-app rounded-lg px-3 h-10 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
               <option value="name">Name</option>
               <option value="price">Price</option>
             </select>
-          </label>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-none ml-auto">
             {prefs.hiddenIds.length > 0 && (
               <button className="btn-quiet tap" onClick={() => updatePrefs({ hiddenIds: [] })}>Unhide all</button>
             )}
-            {directory.length > 0 && (
-              <button className="btn tap" onClick={()=>setAddOpen(true)}>Add service</button>
-            )}
+            <button
+              className="btn sm:btn tap h-10 px-4"
+              onClick={()=>setAddOpen(true)}
+              disabled={directory.length === 0}
+              aria-disabled={directory.length === 0}
+            >
+              Add service
+            </button>
           </div>
         </div>
         {hasScanned && (
@@ -241,10 +241,10 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         )}
       </div>
 
-      <ul className="space-y-3 sm:space-y-2">
-        {sortItems([...customItems, ...items])
+      <ul className="space-y-4 sm:space-y-2">
+         {sortItems([...customItems, ...items])
           .filter((s) => !cancelledIds.includes(s.id))
-          .filter((s) => prefs.showSuggestions ? true : detectedIds.includes(s.id))
+           // Always show suggestions; user can hide individually
           .filter((s) => !prefs.hiddenIds.includes(s.id))
           .map((sub) => (
             <SubscriptionCard
@@ -260,26 +260,32 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         ))}
       </ul>
 
-      {(guideHtml || loadingGuideId) && (
-        <div className="mt-6 card rounded-xl p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-app">
-            <div className="text-sm font-semibold">Step-by-step guide</div>
-            <button aria-label="Close guide" className="text-sm px-2 py-1 rounded-lg hover:bg-neutral-800" onClick={()=>setGuideHtml(null)}>✖ Close</button>
-          </div>
-          {loadingGuideId ? (
-            <div className="p-4">
-              <div className="h-4 w-40 bg-[color:var(--surface)] rounded mb-3 animate-pulse" />
-              <div className="space-y-2">
-                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
-                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
-                <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
-              </div>
+      <BottomSheet
+        open={sheetOpen || !!loadingGuideId}
+        title="Step-by-step guide"
+        onClose={() => { setSheetOpen(false); setGuideHtml(null); }}
+        actions={guideHtml ? (
+          <button
+            className="btn-quiet text-xs px-2 py-1"
+            onClick={() => { if (guideHtml) navigator.clipboard.writeText(stripHtml(guideHtml)); }}
+          >
+            Copy guide
+          </button>
+        ) : null}
+      >
+        {loadingGuideId ? (
+          <div>
+            <div className="h-4 w-40 bg-[color:var(--surface)] rounded mb-3 animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
+              <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
+              <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
             </div>
-          ) : (
-            <div className="p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml! }} />
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml! }} />
+        )}
+      </BottomSheet>
 
       {insights && (
         <div className="mt-6 space-y-3">
@@ -354,7 +360,6 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onSelect={(opt) => {
-          updatePrefs({ showSuggestions: true });
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
           setCustomItems((prev) => (prev.find((p) => p.id === opt.id) ? prev : [...prev, { id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' }]));

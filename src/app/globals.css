@@ -99,6 +99,15 @@ body {
   @apply px-4 py-3 text-base rounded-xl;
 }
 
+/* Mobile spacing tweaks */
+@media (max-width: 640px) {
+  .card { border-radius: 20px; }
+}
+
+/* Hide scrollbars for horizontal toolbars */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Improve mobile form usability: prevent Safari zoom by ensuring 16px text size */
 input, select, textarea {
   font-size: 16px;
