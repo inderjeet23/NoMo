@@ -182,24 +182,24 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h2 className="text-2xl font-extrabold">Your Subscriptions</h2>
         <div className="flex items-center gap-3 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={prefs.showSuggestions} onChange={(e)=>updatePrefs({ showSuggestions: e.target.checked })} />
+          <label className="inline-flex items-center gap-2 tap">
+            <input className="w-5 h-5" type="checkbox" checked={prefs.showSuggestions} onChange={(e)=>updatePrefs({ showSuggestions: e.target.checked })} />
             <span>Show suggestions</span>
           </label>
           <label className="inline-flex items-center gap-2">
             <span>Sort</span>
-            <select className="bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+            <select className="bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-2 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
               <option value="name">Name</option>
               <option value="price">Price</option>
             </select>
           </label>
           {prefs.hiddenIds.length > 0 && (
-            <button className="rounded-lg px-2 py-1 border border-neutral-800 hover:bg-neutral-800" onClick={() => updatePrefs({ hiddenIds: [] })}>
+            <button className="rounded-lg px-3 py-2 border border-neutral-800 hover:bg-neutral-800 tap" onClick={() => updatePrefs({ hiddenIds: [] })}>
               Unhide all
             </button>
           )}
           {directory.length > 0 && (
-            <button className="rounded-lg px-2 py-1 border border-neutral-800 hover:bg-neutral-800" onClick={()=>setAddOpen(true)}>Add service</button>
+            <button className="rounded-lg px-3 py-2 border border-neutral-800 hover:bg-neutral-800 tap" onClick={()=>setAddOpen(true)}>Add service</button>
           )}
         </div>
         {hasScanned && (
@@ -231,11 +231,11 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
               </div>
             </div>
             <div className="flex gap-2 items-center col-span-2 sm:col-span-1">
-              <button onClick={() => handleGuide(sub)} className="btn btn-secondary btn-lg sm:btn" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
+              <button onClick={() => handleGuide(sub)} className="btn btn-secondary btn-lg sm:btn tap" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
                 {loadingGuideId === sub.id ? 'Guiding…' : '🧭 Guide Me'}
               </button>
-              <button onClick={() => handleCancelClick(sub)} className="btn btn-lg sm:btn" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
-              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>Hide</button>
+              <button onClick={() => handleCancelClick(sub)} className="btn btn-lg sm:btn tap" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
+              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800 tap" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>Hide</button>
             </div>
           </li>
         ))}

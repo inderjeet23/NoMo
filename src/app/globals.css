@@ -37,6 +37,17 @@ body {
   @apply px-4 py-3 text-base rounded-xl;
 }
 
+/* Improve mobile form usability: prevent Safari zoom by ensuring 16px text size */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Touch target utility */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Respect reduced motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   * {
