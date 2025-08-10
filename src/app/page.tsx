@@ -20,10 +20,10 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black text-white px-4 pb-24">
+    <main className="min-h-screen bg-black text-white px-3 sm:px-4 pb-24">
       <Header />
 
-      <div className="w-full max-w-5xl mx-auto grid gap-8">
+      <div className="w-full max-w-5xl mx-auto grid gap-6 sm:gap-8">
         <SubscriptionList items={allSubs} />
 
         <section className="mt-8 bg-neutral-950 border border-neutral-800 rounded-2xl p-6">

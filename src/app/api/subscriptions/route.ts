@@ -18,7 +18,32 @@ export async function GET() {
     .doc('detected')
     .get();
   const data = doc.exists ? doc.data()?.list ?? [] : [];
-  return new Response(JSON.stringify({ subscriptions: data }), { headers: { 'Content-Type': 'application/json' } });
+  const prefsDoc = await adminDb.collection('users').doc(email).collection('meta').doc('prefs').get();
+  const prefs = prefsDoc.exists ? prefsDoc.data() : {};
+  const canceledDoc = await adminDb.collection('users').doc(email).collection('subscriptions').doc('canceled').get();
+  const canceled = canceledDoc.exists ? canceledDoc.data()?.ids ?? [] : [];
+  return new Response(
+    JSON.stringify({ subscriptions: data, prefs, canceled }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
+export async function POST(req: Request) {
+  const session = await getServerSession(auth);
+  if (!session?.user?.email) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+  const email = session.user.email;
+  const body = await req.json();
+  const { prefs, canceledIds } = body as { prefs?: unknown; canceledIds?: string[] };
+  const { adminDb } = await import('@/lib/firebaseAdmin');
+  if (prefs && typeof prefs === 'object') {
+    await adminDb.collection('users').doc(email).collection('meta').doc('prefs').set(prefs as Record<string, unknown>, { merge: true });
+  }
+  if (Array.isArray(canceledIds)) {
+    await adminDb.collection('users').doc(email).collection('subscriptions').doc('canceled').set({ ids: canceledIds, updatedAt: new Date() });
+  }
+  return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 }
 
 

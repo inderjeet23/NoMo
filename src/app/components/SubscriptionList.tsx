@@ -8,6 +8,7 @@ import ConfirmModal from './ConfirmModal';
 import { track } from '@/lib/analytics';
 import confetti from 'canvas-confetti';
 import { getBrandAvatarStyle } from '@/lib/brandAvatar';
+import { getPrefs, setPrefs, prefsExists, type Preferences } from '@/lib/prefs';
 
 async function callGemini(prompt: string, options?: { json?: boolean; system?: string }) {
   const res = await fetch('/api/gemini', {
@@ -31,6 +32,7 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
   const [cancelledIds, setCancelledIds] = useState<string[]>([]);
   const [monthlySavings, setMonthlySavings] = useState<number>(0);
   const [hasScanned, setHasScanned] = useState(false);
+  const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], showSuggestions: true, sort: 'name' });
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,8 +45,15 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     return () => window.removeEventListener('focus', onFocus);
   }, [activeService]);
 
-  // On sign-in, fetch saved subscriptions
+  // On sign-in, fetch saved subscriptions and prefs/canceled
   useEffect(() => {
+    // load prefs once on mount; if user is signed in and no prefs yet, default showSuggestions=false
+    const existing = getPrefs();
+    if (session && !prefsExists()) {
+      existing.showSuggestions = false;
+      setPrefs(existing);
+    }
+    setPrefsState(existing);
     async function fetchSaved() {
       if (!session) return;
       const res = await fetch('/api/subscriptions');
@@ -52,6 +61,13 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
       const data = await res.json();
       const ids: string[] = (data.subscriptions ?? []).map((s: { id: string }) => s.id);
       setDetectedIds(ids);
+      if (Array.isArray(data?.canceled)) setCancelledIds(data.canceled as string[]);
+      if (data?.prefs && typeof data.prefs === 'object') {
+        const serverPrefs = data.prefs as Partial<Preferences>;
+        const merged: Preferences = { ...getPrefs(), ...serverPrefs } as Preferences;
+        setPrefs(merged);
+        setPrefsState(merged);
+      }
     }
     fetchSaved();
   }, [session]);
@@ -118,6 +134,23 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
     setHasScanned(true);
   }
 
+  function updatePrefs(next: Partial<Preferences>) {
+    const merged: Preferences = { ...prefs, ...next };
+    setPrefsState(merged);
+    setPrefs(merged);
+    // sync to server if signed in
+    if (session) {
+      fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: merged }) });
+    }
+  }
+
+  function sortItems(list: Subscription[]) {
+    if (prefs.sort === 'price') {
+      return [...list].sort((a, b) => (a.pricePerMonthUsd ?? 0) - (b.pricePerMonthUsd ?? 0));
+    }
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   return (
     <section className="w-full max-w-4xl mx-auto">
       {!session ? (
@@ -132,8 +165,26 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           <button onClick={scanInbox} className="btn btn-secondary">🔎 Scan Inbox</button>
         </div>
       )}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h2 className="text-2xl font-extrabold">Your Subscriptions</h2>
+        <div className="flex items-center gap-3 text-sm">
+          <label className="inline-flex items-center gap-2">
+            <input type="checkbox" checked={prefs.showSuggestions} onChange={(e)=>updatePrefs({ showSuggestions: e.target.checked })} />
+            <span>Show suggestions</span>
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <span>Sort</span>
+            <select className="bg-neutral-900 border border-neutral-800 rounded-lg px-2 py-1" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+              <option value="name">Name</option>
+              <option value="price">Price</option>
+            </select>
+          </label>
+          {prefs.hiddenIds.length > 0 && (
+            <button className="rounded-lg px-2 py-1 border border-neutral-800 hover:bg-neutral-800" onClick={() => updatePrefs({ hiddenIds: [] })}>
+              Unhide all
+            </button>
+          )}
+        </div>
         {hasScanned && (
           <button onClick={handleInsights} className="btn btn-secondary" aria-label="Get insights from your subscriptions" disabled={loadingInsights}>
             {loadingInsights ? 'Loading…' : '✨ Get Insights'}
@@ -141,9 +192,13 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
         )}
       </div>
 
-      <ul className="space-y-2">
-        {items.filter((s) => !cancelledIds.includes(s.id)).map((sub) => (
-          <li key={sub.id} className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
+      <ul className="space-y-3 sm:space-y-2">
+        {sortItems(items)
+          .filter((s) => !cancelledIds.includes(s.id))
+          .filter((s) => prefs.showSuggestions ? true : detectedIds.includes(s.id))
+          .filter((s) => !prefs.hiddenIds.includes(s.id))
+          .map((sub) => (
+          <li key={sub.id} className="grid grid-cols-[auto_1fr] sm:flex sm:items-center sm:justify-between bg-neutral-900 border border-neutral-800 rounded-2xl p-4 gap-3">
             <div className="flex items-center gap-3">
               {(() => { const a = getBrandAvatarStyle(sub.name); return (
                 <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
@@ -154,22 +209,29 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
                   <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-300 text-xs font-semibold px-2 py-0.5 border border-green-700/40">Detected</span>
                 )}
               </div>
-              <div className="text-sm text-neutral-200">
+              <div className="text-base sm:text-sm text-neutral-200">
                 {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => handleGuide(sub)} className="btn btn-secondary" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
+            <div className="flex gap-2 items-center col-span-2 sm:col-span-1">
+              <button onClick={() => handleGuide(sub)} className="btn btn-secondary btn-lg sm:btn" aria-label={`Guide me to cancel ${sub.name}`} disabled={loadingGuideId === sub.id}>
                 {loadingGuideId === sub.id ? 'Guiding…' : '🧭 Guide Me'}
               </button>
-              <button onClick={() => handleCancelClick(sub)} className="btn" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
+              <button onClick={() => handleCancelClick(sub)} className="btn btn-lg sm:btn" aria-label={`Open ${sub.name} cancel page`}>🛑 Go to Cancel Page</button>
+              <button aria-label={`Hide ${sub.name}`} className="rounded-lg px-3 py-2 text-xs sm:text-xs border border-neutral-800 hover:bg-neutral-800" onClick={()=>updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}>Hide</button>
             </div>
           </li>
         ))}
       </ul>
 
       {guideHtml && (
-        <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml }} />
+        <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-0 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800">
+            <div className="text-sm font-semibold">Step-by-step guide</div>
+            <button aria-label="Close guide" className="text-sm px-2 py-1 rounded-lg hover:bg-neutral-800" onClick={()=>setGuideHtml(null)}>✖ Close</button>
+          </div>
+          <div className="p-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml }} />
+        </div>
       )}
 
       {insights && (
@@ -197,6 +259,10 @@ export default function SubscriptionList({ items }: { items: Subscription[] }) {
           if (activeService) {
             setCancelledIds((prev) => prev.includes(activeService.id) ? prev : [...prev, activeService.id]);
             setMonthlySavings((prev) => prev + (activeService.pricePerMonthUsd || 0));
+            if (session) {
+              const next = [...new Set([...(cancelledIds || []), activeService.id])];
+              fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canceledIds: next }) });
+            }
           }
           setActiveService(null);
           announce('Marked as cancelled');
