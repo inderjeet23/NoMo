@@ -43,6 +43,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [customItems, setCustomItems] = useState<Subscription[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Subscription | null>(null);
   const [pendingNewId, setPendingNewId] = useState<string | null>(null);
   const cancelClickBlockRef = useRef<number>(0);
@@ -218,18 +219,12 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
 
   return (
     <section className="w-full max-w-4xl mx-auto">
-      {!session ? (
-        <div className="flex flex-col items-center justify-center gap-4 mb-6 card p-6 text-center">
-          <h3 className="text-xl font-extrabold">Connect your email</h3>
-          <p className="text-neutral-500 text-sm">We never see your password. You&apos;ll securely sign in with Google.</p>
-          <button onClick={connectEmail} className="btn btn-lg sm:btn">🔐 Connect Gmail</button>
-        </div>
-      ) : (
+      {session ? (
         <div className="flex items-center justify-between mb-6 card p-5">
           <div className="font-semibold">Connected as {session.user?.email}</div>
           <button onClick={scanInbox} className="btn btn-secondary tap">🔎 Find my subscriptions</button>
         </div>
-      )}
+      ) : null}
       <div className="mb-4">
         <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
         <div className="toolbar-card rounded-xl p-3 sm:p-4 flex items-center gap-3 text-sm overflow-x-auto no-scrollbar">
@@ -274,6 +269,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               sub={sub}
               detected={detectedIds.includes(sub.id)}
               isGuiding={loadingGuideId === sub.id}
+              expanded={expandedId === sub.id}
+              onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
               onGuide={() => handleGuide(sub)}
               onCancel={() => handleCancelClick(sub)}
               onHide={() => updatePrefs({ hiddenIds: [...new Set([...prefs.hiddenIds, sub.id])] })}
