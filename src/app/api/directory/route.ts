@@ -21,6 +21,7 @@ export async function GET(_req: NextRequest) {
       let base = raw;
       if (/^ChatGPT\b/i.test(raw)) base = 'ChatGPT';
       else if (/^Claude\b/i.test(raw)) base = 'Claude';
+      else if (/^(Gemini|Google One AI Premium|Google One AI)\b/i.test(raw)) base = 'Gemini';
       const id = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       return { id, name: base };
     }
@@ -38,7 +39,8 @@ export async function GET(_req: NextRequest) {
         byId.set(c.id, candidate);
       } else {
         // Prefer a clear web destination when available
-        const isWebRow = /\(web\)/i.test(r.service) || /chat\.openai\.com|claude\.ai/i.test(candidate.cancelUrl);
+        const isWebRow = /\(web\)/i.test(r.service)
+          || /chat\.openai\.com|claude\.ai|gemini\.google\.com/i.test(candidate.cancelUrl);
         if (isWebRow) {
           byId.set(c.id, { ...existing, cancelUrl: candidate.cancelUrl || existing.cancelUrl, flow: candidate.flow || existing.flow });
         }
