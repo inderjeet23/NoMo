@@ -13,17 +13,36 @@ export async function GET(_req: NextRequest) {
       fs.stat(csvPath),
     ]);
     const rows = parseCsv(text);
-    // Map and dedupe by id (last wins), sort by name
-    const byId = new Map<string, { id: string; name: string; cancelUrl: string; flow: string; region: string }>();
+    // Map and dedupe; consolidate ChatGPT and Claude variants into single entries
+    type Dir = { id: string; name: string; cancelUrl: string; flow: string; region: string };
+    const byId = new Map<string, Dir>();
+    function toCanonical(serviceName: string): { id: string; name: string } {
+      const raw = serviceName.trim();
+      let base = raw;
+      if (/^ChatGPT\b/i.test(raw)) base = 'ChatGPT';
+      else if (/^Claude\b/i.test(raw)) base = 'Claude';
+      const id = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      return { id, name: base };
+    }
     for (const r of rows) {
-      const id = r.service.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      byId.set(id, {
-        id,
-        name: r.service,
+      const c = toCanonical(r.service);
+      const existing = byId.get(c.id);
+      const candidate: Dir = {
+        id: c.id,
+        name: c.name,
         cancelUrl: r.cancel_url_hint || '',
         flow: r.flow || '',
         region: r.region || '',
-      });
+      };
+      if (!existing) {
+        byId.set(c.id, candidate);
+      } else {
+        // Prefer a clear web destination when available
+        const isWebRow = /\(web\)/i.test(r.service) || /chat\.openai\.com|claude\.ai/i.test(candidate.cancelUrl);
+        if (isWebRow) {
+          byId.set(c.id, { ...existing, cancelUrl: candidate.cancelUrl || existing.cancelUrl, flow: candidate.flow || existing.flow });
+        }
+      }
     }
     const options = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
     const headers = new Headers({
