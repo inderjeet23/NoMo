@@ -405,16 +405,16 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         price={0}
         allowName
         onClose={() => setTrackingOpen(false)}
-        onSave={({ name, price, cadence, nextChargeAt, notifyEmail, notifyPush }) => {
+        onSave={({ name, price, cadence, nextChargeAt, notifyEmail }) => {
           const id = `custom-${Date.now()}`;
           const finalName = (name && name.trim()) || 'Custom service';
           const newItem: Subscription = { id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#' };
           setCustomItems((prev) => [...prev, newItem]);
-          upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail, notifyPush });
+          upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail });
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
             upsertUserSub(uid, newItem);
-            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id, name: finalName, cancelUrl: '#', pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id, name: finalName, cancelUrl: '#', pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail } }) });
           }
           setTrackingOpen(false);
         }}
@@ -433,14 +433,14 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           setPendingNewId(null);
         }}
         onClose={() => { setEditTarget(null); setPendingNewId(null); }}
-        onSave={({ price, cadence, nextChargeAt, notifyEmail, notifyPush }) => {
+        onSave={({ price, cadence, nextChargeAt, notifyEmail }) => {
           if (!editTarget) return;
           setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
-          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail, notifyPush });
+          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail });
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
             upsertUserSub(uid, { ...editTarget, pricePerMonthUsd: price, cadence, nextChargeAt });
-            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl, pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail, notifyPush } }) });
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl, pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail } }) });
           }
           setPendingNewId(null);
         }}

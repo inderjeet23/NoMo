@@ -1,13 +1,12 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function EditPriceModal({ open, name, price, cadence='month', nextChargeAt, notifyEmail=false, notifyPush=false, requirePrice=false, allowName=false, onDiscard, onSave, onClose }: { open: boolean; name: string; price: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean; requirePrice?: boolean; allowName?: boolean; onDiscard?: () => void; onSave: (p: { name?: string; price: number; cadence: 'month'|'year'; nextChargeAt?: string; notifyEmail: boolean; notifyPush: boolean }) => void; onClose: () => void }) {
+export default function EditPriceModal({ open, name, price, cadence='month', nextChargeAt, notifyEmail=false, requirePrice=false, allowName=false, onDiscard, onSave, onClose }: { open: boolean; name: string; price: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; requirePrice?: boolean; allowName?: boolean; onDiscard?: () => void; onSave: (p: { name?: string; price: number; cadence: 'month'|'year'; nextChargeAt?: string; notifyEmail: boolean }) => void; onClose: () => void }) {
   const [value, setValue] = useState<string>('');
   const [customName, setCustomName] = useState<string>(name || '');
   const [cad, setCad] = useState<'month'|'year'>(cadence);
   const [date, setDate] = useState<string>(nextChargeAt ?? '');
   const [email, setEmail] = useState<boolean>(notifyEmail);
-  const [push, setPush] = useState<boolean>(notifyPush);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -104,11 +103,10 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
           </div>
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm"><input className="w-5 h-5" type="checkbox" checked={email} onChange={(e)=>setEmail(e.target.checked)} /> Email reminders</label>
-            <label className="flex items-center gap-2 text-sm"><input className="w-5 h-5" type="checkbox" checked={push} onChange={(e)=>setPush(e.target.checked)} /> Push reminders</label>
           </div>
           <div className="flex justify-end gap-2 mt-2">
             <button className="btn btn-secondary tap" onClick={handleRequestClose}>{requirePrice ? 'Discard' : 'Cancel'}</button>
-            <button className="btn tap" disabled={(requirePrice && invalid) || invalidName} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0 && !(allowName && invalidName)) { onSave({ name: allowName ? customName.trim() : undefined, price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email, notifyPush: push }); onClose(); } }}>
+            <button className="btn tap" disabled={(requirePrice && invalid) || invalidName} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0 && !(allowName && invalidName)) { onSave({ name: allowName ? customName.trim() : undefined, price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email }); onClose(); } }}>
               Save
             </button>
           </div>

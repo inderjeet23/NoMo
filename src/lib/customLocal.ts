@@ -6,7 +6,6 @@ export type CustomLocal = {
   cadence?: 'month' | 'year';
   nextChargeAt?: string;
   notifyEmail?: boolean;
-  notifyPush?: boolean;
 };
 
 const KEY = 'nomo.custom.v1';

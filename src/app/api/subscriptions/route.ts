@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     canceledIds?: string[];
     removedIds?: string[];
     customAdd?: { id: string; name: string; cancelUrl?: string }; // backward compat
-    customUpsert?: { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean };
+    customUpsert?: { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean };
   };
   const { adminDb } = await import('@/lib/firebaseAdmin');
   if (prefs && typeof prefs === 'object') {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   if (customUpsert && customUpsert.id && customUpsert.name) {
     const ref = adminDb.collection('users').doc(email).collection('subscriptions').doc('custom');
     const snap = await ref.get();
-    type Custom = { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; notifyPush?: boolean };
+    type Custom = { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean };
     const list = (snap.exists ? (snap.data()?.list ?? []) : []) as Custom[];
     const idx = list.findIndex((x) => x.id === customUpsert.id);
     if (idx >= 0) list[idx] = { ...list[idx], ...customUpsert };
