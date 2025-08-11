@@ -10,6 +10,7 @@ import confetti from 'canvas-confetti';
 import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 import { getPrefs, setPrefs, type Preferences } from '@/lib/prefs';
 import AddServiceModal from './AddServiceModal';
+import AddChooserModal from './AddChooserModal';
 import EditPriceModal from './EditPriceModal';
 import { upsertCustomLocal, getCustomLocal, removeCustomLocal } from '@/lib/customLocal';
 import { upsertUserSub, removeUserSub } from '@/lib/firestoreSubs';
@@ -43,6 +44,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [prefs, setPrefsState] = useState<Preferences>({ hiddenIds: [], sort: 'name' });
   const [directory, setDirectory] = useState<Array<{ id: string; name: string; cancelUrl: string; flow: string; region: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [customItems, setCustomItems] = useState<Subscription[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<Subscription | null>(null);
@@ -209,11 +211,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
 
   return (
     <section className="w-full max-w-4xl mx-auto">
-      {session ? (
-        <div className="flex items-center justify-start mb-6 card p-5">
-          <div className="font-semibold">Connected as {session.user?.email}</div>
-        </div>
-      ) : null}
+      {/* Removed redundant connected-as card */}
       <div className="mb-4">
         <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
         <div className="toolbar-card rounded-xl p-3 sm:p-4 flex items-center gap-3 text-sm overflow-x-auto no-scrollbar">
@@ -227,17 +225,9 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           <div className="flex items-center gap-2 flex-none ml-auto">
             <button
               className="btn sm:btn tap h-10 px-4"
-              onClick={()=>setAddOpen(true)}
-              disabled={directory.length === 0}
-              aria-disabled={directory.length === 0}
+              onClick={()=>setChooserOpen(true)}
             >
-              Add service
-            </button>
-            <button
-              className="btn-quiet tap h-10 px-4"
-              onClick={()=>setTrackingOpen(true)}
-            >
-              Track custom
+              Add Subscription
             </button>
           </div>
         </div>
@@ -258,23 +248,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
               onGuide={() => handleGuide(sub)}
               onCancel={() => handleCancelClick(sub)}
-               onHide={async () => {
-                 // Remove completely
-                 setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(sub)));
-                 removeCustomLocal(sub.id);
-                 setRemovedIds((prev) => {
-                   const next = Array.from(new Set([...prev, sub.id]));
-                   if (session) {
-                     fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ removedIds: next }) });
-                   }
-                   return next;
-                 });
-                 setDetectedIds((prev) => prev.filter((id) => id !== sub.id));
-                 const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
-                 if (uid) {
-                   await removeUserSub(uid, sub.id);
-                 }
-               }}
+              onHide={() => setActiveService(sub)}
               onEditPrice={() => setEditTarget(sub)}
             />
         ))}
@@ -321,21 +295,21 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
 
       <div ref={toastRef} aria-live="polite" className="sr-only" />
 
+      {/* Confirmation modal repurposed for Remove flow */}
       <ConfirmModal
-        open={modalOpen}
+        open={!!activeService}
         serviceName={activeService?.name ?? ''}
-        title={activeService ? `Welcome back! Did you successfully cancel ${activeService.name}?` : undefined}
-        confirmLabel="Yes, I canceled it"
-        cancelLabel="I had trouble"
+        title={activeService ? 'Did you cancel this subscription?' : undefined}
+        confirmLabel="Yes, I Canceled It"
+        cancelLabel="No, Just Hide It"
         onConfirm={() => {
-          setModalOpen(false);
-          if (activeService) {
-            setCancelledIds((prev) => prev.includes(activeService.id) ? prev : [...prev, activeService.id]);
-            setMonthlySavings((prev) => prev + (activeService.pricePerMonthUsd || 0));
-            if (session) {
-              const next = [...new Set([...(cancelledIds || []), activeService.id])];
-              fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canceledIds: next }) });
-            }
+          if (!activeService) return;
+          // Move to canceled and update savings
+          setCancelledIds((prev) => prev.includes(activeService.id) ? prev : [...prev, activeService.id]);
+          setMonthlySavings((prev) => prev + (activeService.pricePerMonthUsd || 0));
+          if (session) {
+            const next = [...new Set([...(cancelledIds || []), activeService.id])];
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canceledIds: next }) });
           }
           setActiveService(null);
           announce('Marked as cancelled');
@@ -344,8 +318,23 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           }
         }}
         onCancel={() => {
-          setModalOpen(false);
-          announce('We\'ll help you with concierge support.');
+          if (!activeService) return;
+          // Hide only (do not add savings)
+          setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(activeService)));
+          removeCustomLocal(activeService.id);
+          setRemovedIds((prev) => {
+            const next = Array.from(new Set([...prev, activeService!.id]));
+            if (session) {
+              fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ removedIds: next }) });
+            }
+            return next;
+          });
+          setDetectedIds((prev) => prev.filter((id) => id !== activeService!.id));
+          const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
+          if (uid) {
+            removeUserSub(uid, activeService.id);
+          }
+          setActiveService(null);
         }}
       />
 
@@ -375,6 +364,15 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           </ul>
         </div>
       )}
+
+      <AddChooserModal
+        open={chooserOpen}
+        onClose={()=>setChooserOpen(false)}
+        onChoose={(choice)=>{
+          if (choice==='directory') setAddOpen(true);
+          if (choice==='custom') setTrackingOpen(true);
+        }}
+      />
 
       <AddServiceModal
         open={addOpen}

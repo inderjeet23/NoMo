@@ -39,7 +39,7 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
 
       {/* Actions row: collapsed on mobile, always visible on desktop */}
       <div className={`${expanded ? 'grid' : 'hidden'} sm:flex gap-2 items-center mt-3`}>
-        <button onClick={onGuide} disabled={isGuiding} className="btn btn-secondary w-full sm:w-auto h-11 tap inline-flex items-center justify-center gap-2">
+        <button onClick={onGuide} disabled={isGuiding} className="btn-secondary w-full sm:w-auto h-11 tap inline-flex items-center justify-center gap-2">
           <img src="/sparkles.svg" alt="AI" className="w-4 h-4 opacity-90" aria-hidden />
           {isGuiding ? 'Generating…' : 'Guide Me'}
         </button>

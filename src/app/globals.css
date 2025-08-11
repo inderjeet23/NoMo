@@ -9,6 +9,10 @@
   --muted: #374151;
   --muted-contrast: #111827;
   --overlay: rgba(255, 255, 255, 0.7);
+  --primary: #4A90E2;
+  --danger: #D0021B;
+  --text-primary: #2F2F2F;
+  --text-secondary: #8E8E93;
 }
 
 /* Manual theme via data-theme */
@@ -31,6 +35,10 @@
   --muted: #a3a3a3;
   --muted-contrast: #e5e5e5;
   --overlay: rgba(0, 0, 0, 0.7);
+  --primary: #4A90E2;
+  --danger: #D0021B;
+  --text-primary: #ededed;
+  --text-secondary: #a3a3a3;
 }
 
 @theme inline {
@@ -82,15 +90,11 @@ body {
 .btn-quiet:hover { background: var(--surface); }
 
 /* Utility classes */
-.btn {
-  @apply inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed;
-}
-.btn-secondary {
-  @apply bg-neutral-800 hover:bg-neutral-700 text-white;
-}
-.btn-danger {
-  @apply bg-rose-600 hover:bg-rose-500 text-white;
-}
+.btn { @apply inline-flex items-center justify-center rounded-lg text-white px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed; background: var(--primary); }
+.btn:hover { filter: brightness(1.05); }
+.btn-secondary { background: var(--text-primary); color: #fff; }
+.btn-secondary:hover { filter: brightness(1.1); }
+.btn-danger { background: var(--danger); color: #fff; }
 .btn-quiet {
   @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm bg-transparent border;
 }
