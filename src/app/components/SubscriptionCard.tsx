@@ -35,14 +35,15 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
               <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-700 dark:text-green-300 text-[10px] font-semibold px-2 py-2 border border-green-700/40">Detected</span>
             )}
           </div>
-          <div className={`text-sm sm:text-xs inline-flex items-center gap-2 ${priceClass}`}>
+          {/* moved price to right column for clearer scan */}
+        </div>
+        <div className="flex items-center gap-3 justify-end">
+          <div className={`text-sm sm:text-xs flex flex-col items-end ${priceClass} min-w-[128px]`}>
             <span className="inline-flex items-center px-2 py-1 rounded-full bg-[color:var(--surface)] text-[13px] font-semibold text-app/90">
               {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / {sub.cadence ?? 'month'}
             </span>
-            <button className="text-xs underline underline-offset-2 hover:opacity-80 tap pressable" onClick={(e)=>{ e.stopPropagation(); onEditPrice(); }}>Edit</button>
+            <button className="text-xs underline underline-offset-2 hover:opacity-80 tap pressable mt-1" onClick={(e)=>{ e.stopPropagation(); onEditPrice(); }}>Edit</button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
           <span aria-hidden className={`sm:hidden transition-transform ${expanded ? 'rotate-180' : ''}`}>▾</span>
         </div>
       </button>

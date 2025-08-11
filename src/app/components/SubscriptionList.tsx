@@ -232,13 +232,15 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       {/* Removed redundant connected-as card */}
       <div className="mb-4">
         <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
-        <div className="toolbar-card rounded-xl p-4 flex items-center gap-4 text-sm overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2 flex-none">
-            <span className="text-neutral-400 leading-10">Sort</span>
-            <select className="bg-app border border-app rounded-lg px-3 h-10 tap pressable" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
-              <option value="name">Name</option>
-              <option value="price">Price</option>
-            </select>
+        <div className="toolbar-card rounded-xl p-2 flex items-center gap-2 text-sm overflow-x-auto no-scrollbar">
+          <div className="flex-none">
+            <button
+              aria-label="Options"
+              className="pressable rounded-lg px-3 h-10 bg-app border border-app"
+              onClick={()=>setSheetOpen(true)}
+            >
+              ⋯
+            </button>
           </div>
           <div className="flex items-center gap-2 flex-none ml-auto">
             <button
@@ -247,24 +249,6 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             >
               Add Subscription
             </button>
-            {session && (
-              <button
-                className="btn-quiet tap pressable h-10 px-4"
-                onClick={async ()=>{
-                  const ok = window.confirm('This will remove all subscriptions, hidden and canceled, and reset prefs. Continue?');
-                  if (!ok) return;
-                  await fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resetAll: true }) });
-                  setDetectedIds([]);
-                  setCancelledIds([]);
-                  setRemovedIds([]);
-                  setCustomItems([]);
-                  setPrefsState({ hiddenIds: [], sort: 'name' });
-                  announce('All data reset');
-                }}
-              >
-                Reset All
-              </button>
-            )}
           </div>
         </div>
         {/* Insights button hidden until scan is re-enabled */}
@@ -351,8 +335,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
 
       <BottomSheet
         open={sheetOpen || !!loadingGuideId}
-        title="Step-by-step guide"
-        onClose={() => { setSheetOpen(false); setGuideHtml(null); }}
+        title={guideHtml || loadingGuideId ? 'Step-by-step guide' : 'Options'}
+        onClose={() => { setSheetOpen(false); if (!guideHtml) return; setGuideHtml(null); }}
         actions={guideHtml ? (
           <button
             className="btn-quiet text-xs px-2 py-1"
@@ -371,8 +355,36 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
               <div className="h-3 bg-[color:var(--surface)] rounded animate-pulse" />
             </div>
           </div>
-        ) : (
+        ) : guideHtml ? (
           <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml! }} />
+        ) : (
+          <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-2 items-center">
+              <div className="text-sm text-neutral-300">Sort</div>
+              <select className="bg-app border border-app rounded-lg px-3 h-10 tap pressable" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+                <option value="name">Name</option>
+                <option value="price">Price</option>
+              </select>
+            </div>
+            {session && (
+              <button
+                className="btn-quiet tap pressable h-10 px-4"
+                onClick={async ()=>{
+                  const ok = window.confirm('This will remove all subscriptions, hidden and canceled, and reset prefs. Continue?');
+                  if (!ok) return;
+                  await fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resetAll: true }) });
+                  setDetectedIds([]);
+                  setCancelledIds([]);
+                  setRemovedIds([]);
+                  setCustomItems([]);
+                  setPrefsState({ hiddenIds: [], sort: 'name' });
+                  announce('All data reset');
+                }}
+              >
+                Reset All
+              </button>
+            )}
+          </div>
         )}
       </BottomSheet>
 

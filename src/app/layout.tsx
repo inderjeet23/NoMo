@@ -30,10 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <div className="max-w-5xl mx-auto w-full px-3 sm:px-4">
-            <BottomBar />
-          </div>
-          <div className="pb-20 sm:pb-0">{children}</div>
+          <div className="pb-6 sm:pb-0">{children}</div>
           <footer className="text-center text-xs text-neutral-500 py-8">
             <div className="flex items-center justify-center gap-3">
               <span>© {new Date().getFullYear()} NoMo</span>

@@ -12,7 +12,7 @@ export default function BottomBar() {
   const path = usePathname();
   const { resolvedTheme, toggleTheme } = useTheme();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 bar backdrop-blur border-t border-app sm:static sm:bg-transparent sm:border-0 sm:mt-4">
+    <nav className="hidden sm:block sm:static sm:bg-transparent sm:border-0 sm:mt-4">
       <ul className="max-w-5xl mx-auto grid grid-cols-2 gap-2 p-2 sm:flex sm:justify-end sm:gap-3 sm:p-0">
         {items.map((it) => {
           const active = path === it.href;

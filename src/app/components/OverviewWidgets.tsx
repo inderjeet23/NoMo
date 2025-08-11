@@ -11,17 +11,13 @@ export default function OverviewWidgets({ items }: { items: Subscription[] }) {
   }, [items]);
 
   return (
-    <section aria-label="Overview" className="overflow-x-auto no-scrollbar">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-app px-3 py-1.5 bg-[color:var(--surface-2)]">
-          <span className="text-xs text-neutral-400">Monthly total</span>
-          <span className="text-sm font-extrabold">{total.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-app px-3 py-1.5 bg-[color:var(--surface-2)]">
-          <span className="text-xs text-neutral-400">Active subscriptions</span>
-          <span className="text-sm font-extrabold">{count.toLocaleString()}</span>
-        </div>
-      </div>
+    <section aria-label="Overview" className="px-1">
+      <p className="text-sm text-neutral-300">
+        <span className="font-extrabold text-app">{total.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span>
+        {" "}/ month across {" "}
+        <span className="font-extrabold text-app">{count.toLocaleString()}</span>
+        {" "}subscriptions
+      </p>
     </section>
   );
 }
