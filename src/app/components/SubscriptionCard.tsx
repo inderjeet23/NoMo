@@ -29,8 +29,8 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
       <button type="button" onClick={onToggle} className="pressable w-full grid grid-cols-[auto_1fr_auto] items-center gap-4 text-left sm:cursor-default">
         <div aria-hidden className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${avatar.bgClass} flex items-center justify-center text-white font-extrabold`}>{avatar.initials}</div>
         <div className="min-w-0">
-          <div className="font-medium flex items-center gap-2 leading-tight">
-            <span className="truncate text-base sm:text-sm">{sub.name}</span>
+          <div className="font-extrabold flex items-center gap-2 leading-tight">
+            <span className="text-base sm:text-sm break-words line-clamp-2">{sub.name}</span>
             {detected && (
               <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-700 dark:text-green-300 text-[10px] font-semibold px-2 py-2 border border-green-700/40">Detected</span>
             )}

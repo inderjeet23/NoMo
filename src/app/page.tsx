@@ -11,15 +11,15 @@ import OverviewWidgets from "./components/OverviewWidgets";
 
 export default function Home() {
   const { data: session } = useSession();
-  const [allSubs, setAllSubs] = useState(subscriptions);
-  const [visibleActive, setVisibleActive] = useState(subscriptions);
+  const [allSubs, setAllSubs] = useState<typeof subscriptions>([]);
+  const [visibleActive, setVisibleActive] = useState<typeof subscriptions>([]);
 
   useEffect(() => {
     // Anonymous: localStorage; Authenticated: Firestore
     const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
     if (!uid) {
       const locals = getLocalSubscriptions();
-      const base = [...subscriptions, ...locals.map((l) => ({ ...l }))];
+      const base = [...locals.map((l) => ({ ...l }))];
       setAllSubs(base);
       setVisibleActive(base);
       return;
