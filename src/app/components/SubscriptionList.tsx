@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { signIn, useSession } from 'next-auth/react';
 import type { Subscription } from '@/lib/data';
 import DOMPurify from 'dompurify';
@@ -51,6 +52,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [pendingNewId, setPendingNewId] = useState<string | null>(null);
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [hiddenOpen, setHiddenOpen] = useState<boolean>(false);
   const cancelClickBlockRef = useRef<number>(0);
   const toastRef = useRef<HTMLDivElement | null>(null);
 
@@ -63,7 +65,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
     return () => window.removeEventListener('focus', onFocus);
   }, [activeService]);
 
-  // On sign-in, fetch saved subscriptions and prefs/canceled
+  // On sign-in, fetch saved subscriptions, prefs, canceled/removed, and custom items
   useEffect(() => {
     // load prefs once on mount
     const existing = getPrefs();
@@ -78,13 +80,26 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       if (Array.isArray(data?.canceled)) setCancelledIds(data.canceled as string[]);
       if (data?.prefs && typeof data.prefs === 'object') {
         const serverPrefs = data.prefs as Partial<Preferences>;
-        const merged: Preferences = { ...getPrefs(), ...serverPrefs } as Preferences;
-        setPrefs(merged);
+        const merged: Preferences = { hiddenIds: Array.isArray(serverPrefs.hiddenIds) ? serverPrefs.hiddenIds as string[] : [], sort: serverPrefs.sort === 'price' ? 'price' : 'name' };
+        // Do not write to localStorage when signed in; rely on server
         setPrefsState(merged);
       }
       // When authenticated we use Firestore as the source of items via parent.
       if (Array.isArray(data?.removed)) {
         setRemovedIds(data.removed as string[]);
+      }
+      // Load custom items from server when available
+      if (Array.isArray(data?.custom)) {
+        const list = (data.custom as Array<{ id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string }>);
+        const mapped = list.map((c) => ({
+          id: c.id,
+          name: c.name,
+          pricePerMonthUsd: Number(c.pricePerMonthUsd || 0),
+          cancelUrl: c.cancelUrl || '#',
+          cadence: (c.cadence as 'month'|'year') || 'month',
+          nextChargeAt: c.nextChargeAt,
+        })) as Subscription[];
+        setCustomItems(mapped);
       }
     }
     fetchSaved();
@@ -99,19 +114,21 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       setDirectory(Array.isArray(data?.options) ? data.options : []);
     }
     loadDir();
-    // load local custom prices once
-    const local = getCustomLocal();
-    if (local.length) {
-      setCustomItems((prev) => {
-        const map = new Map(prev.map((p) => [normalizeKey(p), p] as const));
-        for (const c of local) {
-          const key = normalizeKey({ id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' } as Subscription);
-          map.set(key, { id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' });
-        }
-        return Array.from(map.values());
-      });
+    // For signed-out users, hydrate from local custom storage
+    if (!session) {
+      const local = getCustomLocal();
+      if (local.length) {
+        setCustomItems((prev) => {
+          const map = new Map(prev.map((p) => [normalizeKey(p), p] as const));
+          for (const c of local) {
+            const key = normalizeKey({ id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' } as Subscription);
+            map.set(key, { id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' });
+          }
+          return Array.from(map.values());
+        });
+      }
     }
-  }, []);
+  }, [session]);
 
   function normalizeKey(s: Subscription): string {
     return (s.name || s.id).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -195,10 +212,11 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   function updatePrefs(next: Partial<Preferences>) {
     const merged: Preferences = { ...prefs, ...next };
     setPrefsState(merged);
-    setPrefs(merged);
-    // sync to server if signed in
+    // Persist: server if signed in, otherwise local storage
     if (session) {
       fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: merged }) });
+    } else {
+      setPrefs(merged);
     }
   }
 
@@ -214,17 +232,17 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       {/* Removed redundant connected-as card */}
       <div className="mb-4">
         <h2 className="text-2xl font-extrabold mb-2">Your Subscriptions</h2>
-        <div className="toolbar-card rounded-xl p-3 sm:p-4 flex items-center gap-3 text-sm overflow-x-auto no-scrollbar">
+        <div className="toolbar-card rounded-xl p-4 flex items-center gap-4 text-sm overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 flex-none">
-            <span className="text-neutral-400">Sort</span>
-            <select className="bg-app border border-app rounded-lg px-3 h-10 tap" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
+            <span className="text-neutral-400 leading-10">Sort</span>
+            <select className="bg-app border border-app rounded-lg px-3 h-10 tap pressable" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
               <option value="name">Name</option>
               <option value="price">Price</option>
             </select>
           </div>
           <div className="flex items-center gap-2 flex-none ml-auto">
             <button
-              className="btn sm:btn tap h-10 px-4"
+              className="btn tap h-10 px-4 pressable"
               onClick={()=>setChooserOpen(true)}
             >
               Add Subscription
@@ -234,25 +252,84 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         {/* Insights button hidden until scan is re-enabled */}
       </div>
 
-      <ul className="space-y-4 sm:space-y-2">
-         {sortItems(mergeByName(items, customItems))
-          .filter((s) => !cancelledIds.includes(s.id))
-          .filter((s) => !removedIds.includes(s.id))
-          .map((sub) => (
-            <SubscriptionCard
-              key={sub.id}
-              sub={sub}
-              detected={detectedIds.includes(sub.id)}
-              isGuiding={loadingGuideId === sub.id}
-              expanded={expandedId === sub.id}
-              onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
-              onGuide={() => handleGuide(sub)}
-              onCancel={() => handleCancelClick(sub)}
-              onHide={() => setActiveService(sub)}
-              onEditPrice={() => setEditTarget(sub)}
-            />
-        ))}
+      <ul className="space-y-2">
+        <AnimatePresence initial={false}>
+          {sortItems(mergeByName(items, customItems))
+            .filter((s) => !cancelledIds.includes(s.id))
+            .filter((s) => !removedIds.includes(s.id))
+            .map((sub) => (
+              <SubscriptionCard
+                key={sub.id}
+                sub={sub}
+                detected={detectedIds.includes(sub.id)}
+                isGuiding={loadingGuideId === sub.id}
+                expanded={expandedId === sub.id}
+                onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
+                onGuide={() => handleGuide(sub)}
+                onCancel={() => handleCancelClick(sub)}
+                onHide={() => setActiveService(sub)}
+                onEditPrice={() => setEditTarget(sub)}
+              />
+            ))}
+        </AnimatePresence>
       </ul>
+
+      {/* Hidden Subscriptions Accordion */}
+      <div className="mt-6">
+        <button
+          type="button"
+          className="w-full text-left toolbar-card rounded-xl p-4 flex items-center justify-between pressable"
+          onClick={() => setHiddenOpen((v) => !v)}
+          aria-expanded={hiddenOpen}
+        >
+          <span className="text-base font-semibold">Hidden Subscriptions</span>
+          <span aria-hidden className={`transition-transform ${hiddenOpen ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        <AnimatePresence initial={false}>
+          {hiddenOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <ul className="mt-2 space-y-2">
+                {removedIds.length === 0 && (
+                  <li className="text-sm text-neutral-400 px-2 py-3">No hidden subscriptions</li>
+                )}
+                {removedIds.map((id) => {
+                  const sub = items.find((s) => s.id === id) || customItems.find((s) => s.id === id);
+                  if (!sub) return null;
+                  return (
+                    <li key={id} className="flex items-center justify-between card rounded-2xl p-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="font-medium truncate">{sub.name}</div>
+                        <div className="text-sm text-neutral-400 truncate">
+                          {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
+                        </div>
+                      </div>
+                      <button
+                        className="btn-quiet pressable"
+                        onClick={() => {
+                          setRemovedIds((prev) => prev.filter((x) => x !== id));
+                          if (session) {
+                            const next = removedIds.filter((x) => x !== id);
+                            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ removedIds: next }) });
+                          }
+                          announce('Restored to list');
+                        }}
+                      >
+                        Unhide
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <BottomSheet
         open={sheetOpen || !!loadingGuideId}
@@ -321,7 +398,9 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           if (!activeService) return;
           // Hide only (do not add savings)
           setCustomItems((prev) => prev.filter((x) => normalizeKey(x) !== normalizeKey(activeService)));
-          removeCustomLocal(activeService.id);
+            if (!session) {
+              removeCustomLocal(activeService.id);
+            }
           setRemovedIds((prev) => {
             const next = Array.from(new Set([...prev, activeService!.id]));
             if (session) {
@@ -398,6 +477,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
             upsertUserSub(uid, newItem);
+            fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: newItem.id, name: newItem.name, cancelUrl: newItem.cancelUrl, pricePerMonthUsd: 0 } }) });
           }
           announce(`Added ${opt.name}`);
           setAddOpen(false);
@@ -418,7 +498,9 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           const finalName = (name && name.trim()) || 'Custom service';
           const newItem: Subscription = { id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#' };
           setCustomItems((prev) => [...prev, newItem]);
-          upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail });
+          if (!session) {
+            upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail });
+          }
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
             upsertUserSub(uid, newItem);
@@ -444,7 +526,9 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         onSave={({ price, cadence, nextChargeAt, notifyEmail }) => {
           if (!editTarget) return;
           setCustomItems((prev) => prev.map((x) => x.id === editTarget.id ? { ...x, pricePerMonthUsd: price, cadence, nextChargeAt } : x));
-          upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail });
+          if (!session) {
+            upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail });
+          }
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
             upsertUserSub(uid, { ...editTarget, pricePerMonthUsd: price, cadence, nextChargeAt });

@@ -18,7 +18,7 @@ export default function BottomBar() {
           const active = path === it.href;
           return (
             <li key={it.href} className="flex items-center justify-center">
-              <Link href={it.href} className={`flex ${' '} items-center sm:flex-row flex-col justify-center rounded-xl px-3 py-2 text-xs ${active ? 'text-app' : 'muted'} hover:text-app`}>
+              <Link href={it.href} className={`flex items-center sm:flex-row flex-col justify-center rounded-xl px-3 py-2 text-xs ${active ? 'text-app' : 'muted'} hover:text-app pressable`}>
                 <span aria-hidden className="text-lg sm:mr-1">{it.icon}</span>
                 <span className="hidden sm:inline">{it.label}</span>
               </Link>
@@ -30,7 +30,7 @@ export default function BottomBar() {
             type="button"
             onClick={toggleTheme}
             aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
-            className="ml-2 rounded-lg border border-app px-3 py-2 text-xs text-app/70 hover:bg-[color:var(--surface)]"
+            className="ml-2 rounded-lg border border-app px-3 py-2 text-xs text-app/70 hover:bg-[color:var(--surface)] pressable"
           >
             {resolvedTheme === 'dark' ? '🌙 Dark' : '☀️ Light'}
           </button>

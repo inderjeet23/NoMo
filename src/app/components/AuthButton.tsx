@@ -15,14 +15,14 @@ export default function AuthButton() {
       <div className="flex items-center gap-2">
         {session.user?.image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={session.user.image} alt="" className="w-7 h-7 rounded-full" />
+          <img src={session.user.image} alt="" className="w-8 h-8 rounded-full object-cover" />
         ) : null}
-        <button className="btn-quiet tap" onClick={() => signOut()}>Sign out</button>
+        <button className="btn-quiet tap pressable" onClick={() => signOut()}>Sign out</button>
       </div>
     );
   }
   return (
-    <button className="btn tap" onClick={() => signIn('google')}>
+    <button className="btn tap pressable" onClick={() => signIn('google')}>
       Connect Google
     </button>
   );

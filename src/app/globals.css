@@ -97,14 +97,28 @@ body {
 .btn-quiet:hover { background: var(--surface); }
 
 /* Utility classes */
-.btn { @apply inline-flex items-center justify-center rounded-lg text-white px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed; background: var(--primary); }
+.btn { @apply inline-flex items-center justify-center rounded-lg text-white px-4 py-2 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed; background: var(--primary); }
+.btn { transition: background-color 120ms ease, color 120ms ease, transform 120ms ease, filter 120ms ease, box-shadow 120ms ease; }
 .btn:hover { filter: brightness(1.05); }
+.btn:active { transform: scale(0.98); }
 .btn-secondary { background: var(--secondary-bg); color: #fff; }
 .btn-secondary:hover { filter: brightness(1.1); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-quiet {
   @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm bg-transparent border;
 }
+.btn-quiet { transition: background-color 120ms ease, color 120ms ease, transform 120ms ease, filter 120ms ease, box-shadow 120ms ease; }
+.btn-quiet:active { transform: scale(0.98); }
+
+/* Gemini-inspired secondary button */
+.btn-gemini {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium;
+  background: #89B4F8; /* Gemini light blue */
+  color: #0A1F44; /* deep navy for contrast */
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.btn-gemini:hover { filter: brightness(1.03); }
+.btn-gemini:active { transform: scale(0.98); }
 
 .btn-lg {
   @apply px-4 py-3 text-base rounded-xl;
@@ -128,6 +142,21 @@ input, select, textarea {
 .tap {
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Generic pressable utility for non-button clickable elements */
+.pressable {
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease;
+}
+.pressable:hover { filter: brightness(1.03); }
+.pressable:active { transform: scale(0.98); }
+
+/* Accessible focus ring for all interactive elements */
+button:focus-visible,
+a:where(.btn,.btn-secondary,.btn-danger,.btn-quiet):focus-visible,
+.pressable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* Spinner */

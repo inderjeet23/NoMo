@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function EditPriceModal({ open, name, price, cadence='month', nextChargeAt, notifyEmail=false, requirePrice=false, allowName=false, onDiscard, onSave, onClose }: { open: boolean; name: string; price: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean; requirePrice?: boolean; allowName?: boolean; onDiscard?: () => void; onSave: (p: { name?: string; price: number; cadence: 'month'|'year'; nextChargeAt?: string; notifyEmail: boolean }) => void; onClose: () => void }) {
   const [value, setValue] = useState<string>('');
@@ -48,15 +49,28 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
     onClose();
   }
 
-  if (!open) return null;
-
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={handleRequestClose} />
-      <div className="relative card rounded-t-none sm:rounded-2xl w-full h-[90vh] sm:h-auto sm:max-w-md p-4 overflow-auto overscroll-contain">
+    <AnimatePresence>
+      {open && (
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <motion.div
+            className="absolute inset-0 bg-black/60"
+            onClick={handleRequestClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          />
+          <motion.div
+            className="relative card rounded-t-none sm:rounded-2xl w-full h-[90vh] sm:h-auto sm:max-w-md p-4 overflow-auto overscroll-contain"
+            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold">{allowName ? 'Track custom subscription' : `Set price for ${name}`}</h2>
-          <button className="px-2 py-1 rounded-md hover:bg-neutral-800 tap" onClick={handleRequestClose} aria-label="Close">✖</button>
+          <button className="px-2 py-1 rounded-md hover:bg-neutral-800 tap pressable" onClick={handleRequestClose} aria-label="Close">✖</button>
         </div>
         <div className="grid gap-3">
           {allowName && (
@@ -105,14 +119,16 @@ export default function EditPriceModal({ open, name, price, cadence='month', nex
             <label className="flex items-center gap-2 text-sm"><input className="w-5 h-5" type="checkbox" checked={email} onChange={(e)=>setEmail(e.target.checked)} /> Email reminders</label>
           </div>
           <div className="flex justify-end gap-2 mt-2">
-            <button className="btn btn-secondary tap" onClick={handleRequestClose}>{requirePrice ? 'Discard' : 'Cancel'}</button>
-            <button className="btn tap" disabled={(requirePrice && invalid) || invalidName} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0 && !(allowName && invalidName)) { onSave({ name: allowName ? customName.trim() : undefined, price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email }); onClose(); } }}>
+              <button className="btn btn-secondary tap pressable" onClick={handleRequestClose}>{requirePrice ? 'Discard' : 'Cancel'}</button>
+              <button className="btn tap pressable" disabled={(requirePrice && invalid) || invalidName} onClick={()=>{ const v = Number(value); if (!isNaN(v) && v > 0 && !(allowName && invalidName)) { onSave({ name: allowName ? customName.trim() : undefined, price: v, cadence: cad, nextChargeAt: date || undefined, notifyEmail: email }); onClose(); } }}>
               Save
             </button>
           </div>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 
