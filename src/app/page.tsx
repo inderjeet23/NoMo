@@ -32,7 +32,7 @@ export default function Home() {
       setAllSubs(base);
       setVisibleActive(base);
       unsubscribe = listenUserSubs(uid, (items) => {
-        const list = items && items.length ? items : subscriptions;
+        const list = Array.isArray(items) ? items : [];
         setAllSubs(list);
         setVisibleActive(list);
       });

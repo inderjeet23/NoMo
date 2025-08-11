@@ -382,7 +382,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         onSelect={(opt) => {
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
-           const newId = normalizeKey({ id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' } as Subscription);
+           const newId = normalizeKey({ id: opt.id || opt.name, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' } as Subscription);
            const newItem: Subscription = { id: newId, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
           setCustomItems((prev) => {
             const exists = prev.find((p) => normalizeKey(p) === normalizeKey(newItem));
