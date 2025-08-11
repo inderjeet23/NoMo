@@ -36,7 +36,9 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
             )}
           </div>
           <div className={`text-sm sm:text-xs inline-flex items-center gap-2 ${priceClass}`}>
-            {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / {sub.cadence ?? 'month'}
+            <span className="inline-flex items-center px-2 py-1 rounded-full bg-[color:var(--surface)] text-[13px] font-semibold text-app/90">
+              {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / {sub.cadence ?? 'month'}
+            </span>
             <button className="text-xs underline underline-offset-2 hover:opacity-80 tap pressable" onClick={(e)=>{ e.stopPropagation(); onEditPrice(); }}>Edit</button>
           </div>
         </div>

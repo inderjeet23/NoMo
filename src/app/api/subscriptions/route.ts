@@ -39,14 +39,26 @@ export async function POST(req: Request) {
   }
   const email = session.user.email;
   const body = await req.json();
-  const { prefs, canceledIds, removedIds, customAdd, customUpsert } = body as {
+  const { prefs, canceledIds, removedIds, customAdd, customUpsert, resetAll } = body as {
     prefs?: unknown;
     canceledIds?: string[];
     removedIds?: string[];
     customAdd?: { id: string; name: string; cancelUrl?: string }; // backward compat
     customUpsert?: { id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string; notifyEmail?: boolean };
+    resetAll?: boolean;
   };
   const { adminDb } = await import('@/lib/firebaseAdmin');
+  if (resetAll) {
+    const userRef = adminDb.collection('users').doc(email);
+    await userRef.collection('subscriptions').doc('canceled').set({ ids: [], updatedAt: new Date() });
+    await userRef.collection('subscriptions').doc('removed').set({ ids: [], updatedAt: new Date() });
+    await userRef.collection('subscriptions').doc('custom').set({ list: [], updatedAt: new Date() });
+    await userRef.collection('subscriptions').doc('detected').set({ list: [], updatedAt: new Date() });
+    await userRef.collection('meta').doc('prefs').set({ hiddenIds: [], sort: 'name' }, { merge: true });
+    // Also clear realtime subscriptions doc keyed by email
+    await adminDb.collection('subscriptions').doc(email).set({ items: [], updatedAt: Date.now() });
+    return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
+  }
   if (prefs && typeof prefs === 'object') {
     await adminDb.collection('users').doc(email).collection('meta').doc('prefs').set(prefs as Record<string, unknown>, { merge: true });
   }

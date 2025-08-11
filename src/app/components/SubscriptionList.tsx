@@ -247,6 +247,24 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             >
               Add Subscription
             </button>
+            {session && (
+              <button
+                className="btn-quiet tap pressable h-10 px-4"
+                onClick={async ()=>{
+                  const ok = window.confirm('This will remove all subscriptions, hidden and canceled, and reset prefs. Continue?');
+                  if (!ok) return;
+                  await fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resetAll: true }) });
+                  setDetectedIds([]);
+                  setCancelledIds([]);
+                  setRemovedIds([]);
+                  setCustomItems([]);
+                  setPrefsState({ hiddenIds: [], sort: 'name' });
+                  announce('All data reset');
+                }}
+              >
+                Reset All
+              </button>
+            )}
           </div>
         </div>
         {/* Insights button hidden until scan is re-enabled */}
