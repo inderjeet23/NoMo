@@ -25,6 +25,11 @@
   --muted: #374151;
   --muted-contrast: #111827;
   --overlay: rgba(255, 255, 255, 0.7);
+  --primary: #4A90E2;
+  --danger: #D0021B;
+  --text-primary: #2F2F2F;
+  --text-secondary: #8E8E93;
+  --secondary-bg: #2F2F2F;
 }
 [data-theme='dark'] {
   --background: #0a0a0a;
@@ -59,6 +64,11 @@
     --muted: #a3a3a3;
     --muted-contrast: #e5e5e5;
     --overlay: rgba(0, 0, 0, 0.7);
+  --primary: #4A90E2;
+  --danger: #D0021B;
+  --text-primary: #ededed;
+  --text-secondary: #a3a3a3;
+  --secondary-bg: #2a2a2a;
   }
 }
 
@@ -79,10 +89,7 @@ body {
 .muted { color: var(--muted); }
 
 /* Theme-aware buttons */
-.btn-secondary {
-  background: var(--muted-contrast);
-  color: #ffffff;
-}
+.btn-secondary { background: var(--secondary-bg); color: #ffffff; }
 .btn-secondary:hover { filter: brightness(1.1); }
 .btn-quiet {
   border-color: var(--border);
@@ -92,7 +99,7 @@ body {
 /* Utility classes */
 .btn { @apply inline-flex items-center justify-center rounded-lg text-white px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed; background: var(--primary); }
 .btn:hover { filter: brightness(1.05); }
-.btn-secondary { background: var(--text-primary); color: #fff; }
+.btn-secondary { background: var(--secondary-bg); color: #fff; }
 .btn-secondary:hover { filter: brightness(1.1); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-quiet {
