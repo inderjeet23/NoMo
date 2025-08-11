@@ -254,7 +254,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         {/* Insights button hidden until scan is re-enabled */}
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-3 sm:space-y-2">
         <AnimatePresence initial={false}>
           {sortItems(mergeByName(items, customItems))
             .filter((s) => !cancelledIds.includes(s.id))
@@ -454,8 +454,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             <div className="text-sm text-green-300 font-semibold">Monthly Savings: {monthlySavings.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
           </div>
           <ul className="space-y-2">
-            {items.filter((s) => cancelledIds.includes(s.id)).map((sub) => (
-              <li key={sub.id} className="flex items-center justify-between card rounded-2xl p-4 opacity-70">
+            {mergeByName(items, customItems).filter((s) => cancelledIds.includes(s.id)).map((sub) => (
+              <li key={sub.id} className="flex items-center justify-between card rounded-2xl p-4 opacity-80">
                 <div className="flex items-center gap-3">
                   {(() => { const a = getBrandAvatarStyle(sub.name); return (
                     <div aria-hidden className={`w-12 h-12 rounded-2xl ${a.bgClass} flex items-center justify-center text-white font-extrabold`}>{a.initials}</div>
@@ -467,7 +467,21 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
                     {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })} / month
                   </div>
                 </div>
-                <div className="text-sm text-neutral-400">Canceled</div>
+                <button
+                  className="btn-quiet pressable"
+                  onClick={() => {
+                    setCancelledIds((prev)=>{
+                      const next = prev.filter((id)=>id!==sub.id);
+                      if (session) {
+                        fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canceledIds: next }) });
+                      }
+                      return next;
+                    });
+                    announce('Restored to active');
+                  }}
+                >
+                  Restore
+                </button>
               </li>
             ))}
           </ul>

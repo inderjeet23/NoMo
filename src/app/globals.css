@@ -144,6 +144,14 @@ input, select, textarea {
   min-width: 44px;
 }
 
+/* Line clamp utility (2 lines) for cross-browser without Tailwind plugin */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Generic pressable utility for non-button clickable elements */
 .pressable {
   transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease;
