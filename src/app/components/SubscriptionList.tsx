@@ -388,6 +388,14 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             const exists = prev.find((p) => normalizeKey(p) === normalizeKey(newItem));
             return exists ? prev : [...prev, newItem];
           });
+           // If previously removed, restore it
+           setRemovedIds((prev) => {
+             const next = prev.filter((id) => id !== newId);
+             if (session) {
+               fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ removedIds: next }) });
+             }
+             return next;
+           });
           // persist selection if signed in
           if (session) {
             const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
