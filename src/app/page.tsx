@@ -28,11 +28,9 @@ export default function Home() {
     let unsubscribe: (() => void) | undefined;
     (async () => {
       const initial = await getUserSubs(uid);
-      const base = initial.length ? initial : subscriptions;
-      // Optimistic: apply server items immediately to avoid flash of defaults
+      const base = initial; // Do not seed defaults into Firestore for signed-in users
       setAllSubs(base);
       setVisibleActive(base);
-      if (!initial.length) await setUserSubs(uid, base);
       unsubscribe = listenUserSubs(uid, (items) => {
         const list = items && items.length ? items : subscriptions;
         setAllSubs(list);

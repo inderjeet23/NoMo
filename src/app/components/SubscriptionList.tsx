@@ -91,19 +91,20 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   // Load directory options from CSV on mount
   useEffect(() => {
     async function loadDir() {
-      const res = await fetch('/api/directory');
+      const res = await fetch('/api/directory', { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       setDirectory(Array.isArray(data?.options) ? data.options : []);
     }
     loadDir();
-    // load local custom prices
+    // load local custom prices once
     const local = getCustomLocal();
     if (local.length) {
       setCustomItems((prev) => {
-        const map = new Map(prev.map((p) => [p.id, p] as const));
+        const map = new Map(prev.map((p) => [normalizeKey(p), p] as const));
         for (const c of local) {
-          map.set(c.id, { id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' });
+          const key = normalizeKey({ id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' } as Subscription);
+          map.set(key, { id: c.id, name: c.name, pricePerMonthUsd: c.pricePerMonthUsd, cancelUrl: c.cancelUrl || '#' });
         }
         return Array.from(map.values());
       });
@@ -381,7 +382,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         onSelect={(opt) => {
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
-          const newItem: Subscription = { id: normalizeKey({ id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' }), name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
+           const newId = normalizeKey({ id: opt.id, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' } as Subscription);
+           const newItem: Subscription = { id: newId, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
           setCustomItems((prev) => {
             const exists = prev.find((p) => normalizeKey(p) === normalizeKey(newItem));
             return exists ? prev : [...prev, newItem];
