@@ -41,7 +41,7 @@ export default function Home() {
   }, [session]);
 
   return (
-    <main className="min-h-screen bg-app text-app px-3 sm:px-4 pb-8">
+    <main className="min-h-screen app-bg text-app px-3 sm:px-4 pb-8">
       <Header />
 
       <div className="w-full max-w-5xl mx-auto grid gap-6 sm:gap-8">

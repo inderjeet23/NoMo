@@ -170,6 +170,81 @@ input, select, textarea {
   overflow: hidden;
 }
 
+/* Premium background with subtle gradients and ambient lighting */
+.app-bg {
+  background: radial-gradient(1200px 600px at -10% -10%, rgba(173, 84, 255, 0.08), transparent 60%),
+              radial-gradient(900px 500px at 110% 10%, rgba(255, 84, 164, 0.06), transparent 60%),
+              linear-gradient(180deg, #0a0a0a 0%, #1c1c1c 50%, #0f0f0f 100%);
+  position: relative;
+}
+.app-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(800px 400px at 10% 90%, rgba(137, 180, 248, 0.06), transparent 60%);
+}
+
+/* Glassmorphism card */
+.glass-card {
+  position: relative;
+  border-radius: 16px;
+  background: rgba(20, 20, 20, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.glass-card::after {
+  /* Soft top inset highlight */
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.12));
+  border-top-left-radius: 16px; border-top-right-radius: 16px;
+  pointer-events: none;
+}
+
+/* Buttons: premium tactile feedback */
+.btn, .btn-secondary, .btn-danger, .btn-quiet, .btn-gemini, .btn-gemini-outline {
+  transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1), filter 140ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 140ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn:active, .btn-secondary:active, .btn-danger:active, .btn-quiet:active, .btn-gemini:active, .btn-gemini-outline:active { transform: scale(0.96); }
+
+/* Cancel gradient button */
+.btn-cancel-gradient {
+  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 text-base font-semibold text-white;
+  background: linear-gradient(180deg, #e0102b 0%, #c4071f 100%);
+  box-shadow: 0 6px 20px rgba(224, 16, 43, 0.45);
+}
+.btn-cancel-gradient:hover { filter: brightness(1.03); }
+
+/* Guide glass button */
+.btn-glass-blue {
+  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 text-base font-semibold;
+  background: rgba(30, 58, 138, 0.25);
+  color: #bcd6ff;
+  border: 1.5px solid rgba(137, 180, 248, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Savings pill gradient + glow */
+.badge-saving {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.25);
+}
+
+/* Avatar depth */
+.avatar-depth {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 10px 24px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Stronger amount styling */
+.price-strong { text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
 /* Generic pressable utility for non-button clickable elements */
 .pressable {
   transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease;
