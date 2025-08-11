@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest) {
     // Map and dedupe by id (last wins), sort by name
     const byId = new Map<string, { id: string; name: string; cancelUrl: string; flow: string; region: string }>();
     for (const r of rows) {
-      const id = r.service.toLowerCase().replace(/\s+/g, '-');
+      const id = r.service.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       byId.set(id, {
         id,
         name: r.service,
