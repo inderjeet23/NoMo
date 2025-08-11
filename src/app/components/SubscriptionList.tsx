@@ -92,7 +92,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
       if (Array.isArray(data?.custom)) {
         const list = (data.custom as Array<{ id: string; name: string; cancelUrl?: string; pricePerMonthUsd?: number; cadence?: 'month'|'year'; nextChargeAt?: string }>);
         const mapped = list.map((c) => ({
-          id: c.id,
+          id: (c.id || c.name).toLowerCase(),
           name: c.name,
           pricePerMonthUsd: Number(c.pricePerMonthUsd || 0),
           cancelUrl: c.cancelUrl || '#',
@@ -131,13 +131,13 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   }, [session]);
 
   function normalizeKey(s: Subscription): string {
-    return (s.name || s.id).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return (s.id || s.name).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
   }
 
   function mergeByName(base: Subscription[], custom: Subscription[]): Subscription[] {
     const map = new Map<string, Subscription>();
-    for (const b of base) map.set(normalizeKey(b), b);
-    for (const c of custom) map.set(normalizeKey(c), c); // custom overrides base
+    for (const b of base) map.set(b.id, b);
+    for (const c of custom) map.set(c.id, c); // custom overrides base by id
     return Array.from(map.values());
   }
 
@@ -489,8 +489,8 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
         onSelect={(opt) => {
           if (!detectedIds.includes(opt.id)) setDetectedIds((prev) => [...prev, opt.id]);
           // add immediately to local custom items for display
-           const newId = normalizeKey({ id: opt.id || opt.name, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' } as Subscription);
-           const newItem: Subscription = { id: newId, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
+            const newId = (opt.id || opt.name).toLowerCase();
+            const newItem: Subscription = { id: newId, name: opt.name, pricePerMonthUsd: 0, cancelUrl: opt.cancelUrl || '#' };
           setCustomItems((prev) => {
             const exists = prev.find((p) => normalizeKey(p) === normalizeKey(newItem));
             return exists ? prev : [...prev, newItem];
