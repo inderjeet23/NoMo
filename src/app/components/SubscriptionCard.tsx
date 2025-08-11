@@ -66,7 +66,6 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
           {isGuiding ? 'Generating…' : 'View Guide'}
         </button>
         <button onClick={onCancel} className="btn btn-danger w-full sm:w-auto h-12 tap">Cancel</button>
-        <button onClick={onEditPrice} className="btn-quiet w-full sm:w-auto h-12 tap">Edit</button>
       </div>
     </motion.li>
   );
