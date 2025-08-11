@@ -31,6 +31,10 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
         <div className="min-w-0">
           <div className="font-extrabold flex items-center gap-2 leading-tight">
             <span className="text-base sm:text-sm break-words line-clamp-2">{sub.name}</span>
+            {/* Savings badge, shows if price available */}
+            {Number.isFinite(sub.pricePerMonthUsd) && sub.pricePerMonthUsd > 0 && (
+              <span className="badge-saving">Save {sub.pricePerMonthUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span>
+            )}
             {detected && (
               <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-700 dark:text-green-300 text-[10px] font-semibold px-2 py-2 border border-green-700/40">Detected</span>
             )}
@@ -56,13 +60,13 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
         </div>
       </button>
 
-      {/* Actions row: collapsed on mobile, always visible on desktop */}
-      <div className={`${expanded ? 'grid' : 'hidden'} sm:flex gap-2 items-center mt-4`}>
-        <button onClick={onGuide} disabled={isGuiding} className="btn-gemini w-full sm:w-auto h-12 tap inline-flex items-center justify-center">
-          {isGuiding ? 'Generating…' : 'Guide Me'}
+      {/* Action row pinned at bottom for mobile discoverability */}
+      <div className="grid grid-cols-2 sm:flex gap-2 items-center mt-4">
+        <button onClick={onGuide} disabled={isGuiding} className="btn-gemini-outline w-full sm:w-auto h-12 tap inline-flex items-center justify-center">
+          {isGuiding ? 'Generating…' : 'View Guide'}
         </button>
-        <button onClick={onCancel} className="btn btn-danger w-full sm:w-auto h-12 tap active:animate-[wiggle_200ms_ease-in-out]">🛑 Open cancel page</button>
-        <button onClick={onHide} className="btn-quiet h-12 tap inline-flex items-center justify-center">✖ Remove</button>
+        <button onClick={onCancel} className="btn btn-danger w-full sm:w-auto h-12 tap">Cancel</button>
+        <button onClick={onEditPrice} className="btn-quiet w-full sm:w-auto h-12 tap">Edit</button>
       </div>
     </motion.li>
   );

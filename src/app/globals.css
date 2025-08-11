@@ -120,6 +120,24 @@ body {
 .btn-gemini:hover { filter: brightness(1.03); }
 .btn-gemini:active { transform: scale(0.98); }
 
+/* Gemini outline button */
+.btn-gemini-outline {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold;
+  background: transparent;
+  color: #89B4F8;
+  border: 2px solid #89B4F8;
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.btn-gemini-outline:hover { background: rgba(137, 180, 248, 0.08); }
+.btn-gemini-outline:active { transform: scale(0.98); }
+
+/* Savings pill */
+.badge-saving {
+  background: #16a34a; /* green-600 */
+  color: #fff;
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-bold;
+}
+
 .btn-lg {
   @apply px-4 py-3 text-base rounded-xl;
 }
