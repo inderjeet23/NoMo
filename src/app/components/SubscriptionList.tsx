@@ -371,7 +371,17 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
                 className="btn-glass-blue tap h-10"
                 onClick={async ()=>{
                   announce('Starting Gmail scan…');
+                  const token = (session as unknown as { accessToken?: string })?.accessToken;
+                  if (!token) {
+                    // Request Google consent/token first, then return
+                    await signIn('google');
+                    return;
+                  }
                   const res = await fetch('/api/scan', { method: 'POST' });
+                  if (res.status === 400 || res.status === 401) {
+                    await signIn('google');
+                    return;
+                  }
                   if (!res.ok) { announce('Scan failed'); return; }
                   const data = await res.json();
                   // Refresh server state -> detectedIds
