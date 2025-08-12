@@ -14,12 +14,14 @@ export default function OnboardingChoose() {
   }, [session, router]);
 
   return (
-    <main className="min-h-screen bg-white text-black p-6 flex flex-col">
-      <h1 className="text-3xl font-extrabold mb-6">Get set up</h1>
-      <div className="grid gap-4 max-w-md">
-        <button onClick={() => signIn('google')} className="btn w-full">🔐 Connect Gmail</button>
-        <a href="/onboarding/manual" className="btn btn-secondary w-full">✍️ Add Subscriptions Manually</a>
-      </div>
+    <main className="min-h-screen app-bg text-app p-6 flex flex-col items-center justify-center">
+      <section className="glass-card rounded-2xl p-8 w-full max-w-md">
+        <h1 className="text-2xl font-extrabold mb-6 text-center">Connect your account</h1>
+        <div className="grid gap-4">
+          <button onClick={() => signIn('google')} className="btn-glass-blue w-full h-12">🔐 Connect Gmail</button>
+          <a href="/onboarding/manual" className="btn-quiet w-full h-12">✍️ Add Subscriptions Manually</a>
+        </div>
+      </section>
     </main>
   );
 }

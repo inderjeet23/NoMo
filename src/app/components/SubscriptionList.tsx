@@ -368,6 +368,28 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             </div>
             {session && (
               <button
+                className="btn-glass-blue tap h-10"
+                onClick={async ()=>{
+                  announce('Starting Gmail scan…');
+                  const res = await fetch('/api/scan', { method: 'POST' });
+                  if (!res.ok) { announce('Scan failed'); return; }
+                  const data = await res.json();
+                  // Refresh server state -> detectedIds
+                  const ref = await fetch('/api/subscriptions');
+                  if (ref.ok) {
+                    const payload = await ref.json();
+                    setDetectedIds(Array.isArray(payload?.subscriptions) ? payload.subscriptions.map((s: { id: string }) => s.id) : []);
+                    announce(`Found ${Array.isArray(data?.subscriptions) ? data.subscriptions.length : 0} subscriptions`);
+                  } else {
+                    announce('Scan complete');
+                  }
+                }}
+              >
+                Connect Gmail & Scan
+              </button>
+            )}
+            {session && (
+              <button
                 className="btn-quiet tap pressable h-10 px-4"
                 onClick={async ()=>{
                   const ok = window.confirm('This will remove all subscriptions, hidden and canceled, and reset prefs. Continue?');

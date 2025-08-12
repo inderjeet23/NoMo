@@ -21,37 +21,52 @@ export async function POST(_req: NextRequest) {
     oauth2Client.setCredentials({ access_token: token });
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-    // Search for subscription receipts in Inbox (simple heuristic)
+    // Build richer query and page through results
     const query = [
-      'category:primary newer_than:1y',
-      '("receipt" OR "subscription" OR "invoice" OR "payment")',
-      '-subject:"promo" -subject:"promotion" -label:promotions -subject:"sale"',
+      'category:primary OR category:updates',
+      'newer_than:18m',
+      '(receipt OR subscription OR invoice OR billed OR billing OR payment)',
+      '-subject:promo -subject:promotion -label:promotions -subject:sale',
     ].join(' ');
-    const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 25 });
 
-    const messages = await Promise.all(
-      (list.data.messages ?? []).map(async (m) => {
-        const msg = await gmail.users.messages.get({ userId: "me", id: m.id! });
-        const headers = Object.fromEntries(
-          (msg.data.payload?.headers ?? []).map((h) => [h.name?.toLowerCase(), h.value])
-        );
-        const from = headers["from"] ?? "";
-        const snippet = msg.data.snippet ?? "";
-        return { id: m.id, from, snippet };
+    let nextPageToken: string | undefined;
+    const ids: string[] = [];
+    do {
+      const list = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 100, pageToken: nextPageToken });
+      (list.data.messages ?? []).forEach((m) => m.id && ids.push(m.id));
+      nextPageToken = list.data.nextPageToken ?? undefined;
+      if (ids.length > 400) break; // cap for perf
+    } while (nextPageToken);
+
+    const batch = await Promise.all(
+      ids.slice(0, 400).map(async (id) => {
+        const msg = await gmail.users.messages.get({ userId: 'me', id });
+        const headers = Object.fromEntries((msg.data.payload?.headers ?? []).map((h) => [h.name?.toLowerCase(), h.value]));
+        return {
+          id,
+          from: headers['from'] ?? '',
+          subject: headers['subject'] ?? '',
+          snippet: msg.data.snippet ?? '',
+          listId: headers['list-id'] ?? '',
+        };
       })
     );
 
-    // Very basic vendor extraction
+    // Vendor patterns + ids aligned with directory
     const vendors = [
-      { id: "netflix", name: "Netflix", match: /netflix/i },
-      { id: "spotify", name: "Spotify", match: /spotify/i },
-      { id: "adobe-cc", name: "Adobe", match: /adobe/i },
+      { id: 'amazon-prime', name: 'Amazon Prime', rx: /(amazon\.com|amazon prime|prime video|amazon digital)/i },
+      { id: 'netflix', name: 'Netflix', rx: /netflix/i },
+      { id: 'spotify', name: 'Spotify', rx: /spotify/i },
+      { id: 'adobe-cc', name: 'Adobe Creative Cloud', rx: /adobe( creative| cc)?/i },
+      { id: 'chatgpt', name: 'ChatGPT', rx: /(openai|chatgpt)/i },
+      { id: 'youtube-premium', name: 'YouTube Premium', rx: /(youtube premium|youtube music)/i },
+      { id: 'apple', name: 'Apple', rx: /(apple\.com\/bill|apple receipt|itunes|app store)/i },
     ];
 
     const found: Array<{ id: string; name: string }> = [];
-    for (const msg of messages) {
+    for (const m of batch) {
       for (const v of vendors) {
-        if (v.match.test(msg.from) || v.match.test(msg.snippet)) {
+        if (v.rx.test(m.from) || v.rx.test(m.subject) || v.rx.test(m.snippet) || v.rx.test(m.listId)) {
           if (!found.find((f) => f.id === v.id)) found.push({ id: v.id, name: v.name });
         }
       }
