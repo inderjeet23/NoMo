@@ -9,13 +9,13 @@ export const dynamic = 'force-dynamic';
 export async function POST(_req: NextRequest) {
   const session = await getServerSession(auth);
   if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
   try {
     // Use access token from session (NextAuth stores in JWT)
     const token = (session as { accessToken?: string } | null)?.accessToken;
-    if (!token) return new Response(JSON.stringify({ error: "No token" }), { status: 400 });
+    if (!token) return new Response(JSON.stringify({ error: "No token" }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: token });
@@ -31,12 +31,20 @@ export async function POST(_req: NextRequest) {
 
     let nextPageToken: string | undefined;
     const ids: string[] = [];
-    do {
-      const list = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 100, pageToken: nextPageToken });
-      (list.data.messages ?? []).forEach((m) => m.id && ids.push(m.id));
-      nextPageToken = list.data.nextPageToken ?? undefined;
-      if (ids.length > 400) break; // cap for perf
-    } while (nextPageToken);
+    try {
+      do {
+        const list = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 100, pageToken: nextPageToken });
+        (list.data.messages ?? []).forEach((m) => m.id && ids.push(m.id));
+        nextPageToken = list.data.nextPageToken ?? undefined;
+        if (ids.length > 400) break; // cap for perf
+      } while (nextPageToken);
+    } catch (err: unknown) {
+      const anyErr = err as { code?: number; message?: string };
+      const msg = anyErr?.message || 'Gmail error';
+      const isAuth = (anyErr?.code === 401 || anyErr?.code === 403 || /auth|permission|invalid|401|403/i.test(msg));
+      const status = isAuth ? 401 : 502;
+      return new Response(JSON.stringify({ error: msg || 'Gmail error' }), { status, headers: { 'Content-Type': 'application/json' } });
+    }
 
     const batch = await Promise.all(
       ids.slice(0, 400).map(async (id) => {
@@ -74,16 +82,22 @@ export async function POST(_req: NextRequest) {
 
     // Persist to Firestore by user email
     const userEmail = session.user?.email || 'unknown';
-    const { adminDb } = await import('@/lib/firebaseAdmin');
-    const userDoc = adminDb.collection('users').doc(userEmail);
-    await userDoc.set({ email: userEmail }, { merge: true });
-    await userDoc.collection('subscriptions').doc('detected').set({ list: found, updatedAt: new Date() });
+    try {
+      const { adminDb } = await import('@/lib/firebaseAdmin');
+      const userDoc = adminDb.collection('users').doc(userEmail);
+      await userDoc.set({ email: userEmail }, { merge: true });
+      await userDoc.collection('subscriptions').doc('detected').set({ list: found, updatedAt: new Date() });
+    } catch (err: unknown) {
+      const anyErr = err as { message?: string };
+      return new Response(JSON.stringify({ error: anyErr?.message || 'Server storage error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
 
     return new Response(JSON.stringify({ subscriptions: found }), {
       headers: { "Content-Type": "application/json" },
     });
-  } catch (_e) {
-    return new Response(JSON.stringify({ error: "Scan failed" }), { status: 500 });
+  } catch (err: unknown) {
+    const anyErr = err as { message?: string };
+    return new Response(JSON.stringify({ error: anyErr?.message || "Scan failed" }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
 

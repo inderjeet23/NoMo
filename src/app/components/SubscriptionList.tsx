@@ -14,7 +14,7 @@ import AddServiceModal from './AddServiceModal';
 import AddChooserModal from './AddChooserModal';
 import EditPriceModal from './EditPriceModal';
 import { upsertCustomLocal, getCustomLocal, removeCustomLocal } from '@/lib/customLocal';
-import { upsertUserSub, removeUserSub } from '@/lib/firestoreSubs';
+// Server APIs persist changes; avoid client Firestore writes to bypass rules
 import SubscriptionCard from './SubscriptionCard';
 import BottomSheet from './BottomSheet';
 import { stripHtml } from './utils/stripHtml';
@@ -471,10 +471,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             return next;
           });
           setDetectedIds((prev) => prev.filter((id) => id !== activeService!.id));
-          const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
-          if (uid) {
-            removeUserSub(uid, activeService.id);
-          }
+          // Removal persisted via /api/subscriptions; no client Firestore writes
           setActiveService(null);
         }}
       />
@@ -551,8 +548,6 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
            });
           // persist selection if signed in
           if (session) {
-            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
-            upsertUserSub(uid, newItem);
             fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: newItem.id, name: newItem.name, cancelUrl: newItem.cancelUrl, pricePerMonthUsd: 0 } }) });
           }
           announce(`Added ${opt.name}`);
@@ -606,8 +601,6 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             upsertCustomLocal({ id: editTarget.id, name: editTarget.name, pricePerMonthUsd: price, cancelUrl: editTarget.cancelUrl, cadence, nextChargeAt, notifyEmail });
           }
           if (session) {
-            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
-            upsertUserSub(uid, { ...editTarget, pricePerMonthUsd: price, cadence, nextChargeAt });
             fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id: editTarget.id, name: editTarget.name, cancelUrl: editTarget.cancelUrl, pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail } }) });
           }
           setPendingNewId(null);

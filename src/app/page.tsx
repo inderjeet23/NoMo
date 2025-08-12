@@ -6,7 +6,7 @@ import { subscriptions } from "@/lib/data";
 import { getLocalSubscriptions } from "@/lib/localSubs";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { getUserSubs, listenUserSubs, setUserSubs } from "@/lib/firestoreSubs";
+// All persistence goes through server APIs; avoid client Firestore
 import OverviewWidgets from "./components/OverviewWidgets";
 
 export default function Home() {
@@ -15,29 +15,18 @@ export default function Home() {
   const [visibleActive, setVisibleActive] = useState<typeof subscriptions>([]);
 
   useEffect(() => {
-    // Anonymous: localStorage; Authenticated: Firestore
-    const uid = (session?.user as unknown as { id?: string })?.id || session?.user?.email || null;
-    if (!uid) {
+    // Anonymous: localStorage; Authenticated: use curated list for now
+    const userEmail = session?.user?.email || null;
+    if (!userEmail) {
       const locals = getLocalSubscriptions();
       const base = [...locals.map((l) => ({ ...l }))];
       setAllSubs(base);
       setVisibleActive(base);
       return;
     }
-    // Authenticated: load once and subscribe to changes
-    let unsubscribe: (() => void) | undefined;
-    (async () => {
-      const initial = await getUserSubs(uid);
-      const base = initial; // Do not seed defaults into Firestore for signed-in users
-      setAllSubs(base);
-      setVisibleActive(base);
-      unsubscribe = listenUserSubs(uid, (items) => {
-        const list = Array.isArray(items) ? items : [];
-        setAllSubs(list);
-        setVisibleActive(list);
-      });
-    })();
-    return () => { if (unsubscribe) unsubscribe(); };
+    // For signed-in users, rely on server-managed detected/custom overlays; base is curated list
+    setAllSubs(subscriptions);
+    setVisibleActive(subscriptions);
   }, [session]);
 
   return (
