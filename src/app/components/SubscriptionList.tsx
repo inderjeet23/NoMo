@@ -573,8 +573,6 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             upsertCustomLocal({ id, name: finalName, pricePerMonthUsd: price, cancelUrl: '#', cadence, nextChargeAt, notifyEmail });
           }
           if (session) {
-            const uid = (session.user as unknown as { id?: string })?.id || session.user?.email || '';
-            upsertUserSub(uid, newItem);
             fetch('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customUpsert: { id, name: finalName, cancelUrl: '#', pricePerMonthUsd: price, cadence, nextChargeAt, notifyEmail } }) });
           }
           setTrackingOpen(false);
