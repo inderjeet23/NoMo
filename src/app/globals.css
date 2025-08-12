@@ -269,6 +269,13 @@ a:where(.btn,.btn-secondary,.btn-danger,.btn-quiet):focus-visible,
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Progress bar loading animation */
+@keyframes loading {
+  0% { transform: translateX(-66%); }
+  50% { transform: translateX(33%); }
+  100% { transform: translateX(133%); }
+}
+
 /* Respect reduced motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   * {

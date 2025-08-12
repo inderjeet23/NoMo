@@ -39,6 +39,13 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
   const [loadingGuideId, setLoadingGuideId] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [detectedIds, setDetectedIds] = useState<string[]>([]);
+  const [newlyDetectedIds, setNewlyDetectedIds] = useState<string[]>([]);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanOverlayOpen, setScanOverlayOpen] = useState<boolean>(false);
+  const [scanOverlayMode, setScanOverlayMode] = useState<'idle'|'scanning'|'result'|'error'>('idle');
+  const [scanStage, setScanStage] = useState<string>('Initializing scan…');
+  const [scanSummary, setScanSummary] = useState<{ totalUsd: number; count: number }>({ totalUsd: 0, count: 0 });
   const [cancelledIds, setCancelledIds] = useState<string[]>([]);
   const [monthlySavings, setMonthlySavings] = useState<number>(0);
   // Gmail scanning temporarily out of scope
@@ -104,6 +111,76 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
     }
     fetchSaved();
   }, [session]);
+
+  useEffect(() => {
+    if (newlyDetectedIds.length === 0) return;
+    const t = setTimeout(() => setNewlyDetectedIds([]), 8500);
+    return () => clearTimeout(t);
+  }, [newlyDetectedIds]);
+
+  // If we return from Google sign-in, resume scan automatically
+  useEffect(() => {
+    const pending = typeof window !== 'undefined' && window.localStorage.getItem('nomo_scan_pending') === '1';
+    if (!pending) return;
+    if (!session) return; // wait for session
+    // Clear the flag and kick off overlay flow
+    window.localStorage.removeItem('nomo_scan_pending');
+    void startScanOverlayFlow();
+  }, [session]);
+
+  async function startScanOverlayFlow() {
+    setScanError(null);
+    setScanOverlayOpen(true);
+    setScanOverlayMode('scanning');
+    setScanStage('Initializing scan…');
+    const token = (session as unknown as { accessToken?: string })?.accessToken;
+    if (!token) {
+      // Persist intent across redirect
+      window.localStorage.setItem('nomo_scan_pending', '1');
+      await signIn('google');
+      return;
+    }
+    try {
+      setIsScanning(true);
+      setScanStage('Querying Gmail…');
+      const res = await fetch('/api/scan', { method: 'POST' });
+      if (res.status === 400 || res.status === 401) {
+        window.localStorage.setItem('nomo_scan_pending', '1');
+        await signIn('google');
+        return;
+      }
+      if (!res.ok) {
+        const msg = await res.text().catch(()=> 'Scan failed');
+        setScanError(msg);
+        setScanOverlayMode('error');
+        setIsScanning(false);
+        return;
+      }
+      const data = await res.json();
+      const newly = Array.isArray(data?.subscriptions) ? (data.subscriptions as Array<{ id: string }>).map(s=>s.id) : [];
+      setNewlyDetectedIds(newly);
+      setScanStage('Analyzing results…');
+      const ref = await fetch('/api/subscriptions');
+      if (ref.ok) {
+        const payload = await ref.json();
+        const ids: string[] = Array.isArray(payload?.subscriptions) ? payload.subscriptions.map((s: { id: string }) => s.id) : [];
+        setDetectedIds(ids);
+        // Compute summary against current merged items
+        const merged = mergeByName(items, customItems);
+        const matched = merged.filter((s) => ids.includes(s.id));
+        const total = matched.reduce((sum, s) => sum + (Number(s.pricePerMonthUsd || 0)), 0);
+        setScanSummary({ totalUsd: total, count: matched.length });
+      } else {
+        setScanSummary({ totalUsd: 0, count: newly.length });
+      }
+      setScanOverlayMode('result');
+    } catch (_e) {
+      setScanError('Scan failed');
+      setScanOverlayMode('error');
+    } finally {
+      setIsScanning(false);
+    }
+  }
 
   // Load directory options from CSV on mount
   useEffect(() => {
@@ -264,6 +341,7 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
                 key={sub.id}
                 sub={sub}
                 detected={detectedIds.includes(sub.id)}
+                newlyDetected={newlyDetectedIds.includes(sub.id)}
                 isGuiding={loadingGuideId === sub.id}
                 expanded={expandedId === sub.id}
                 onToggle={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
@@ -359,6 +437,22 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: guideHtml! }} />
         ) : (
           <div className="grid gap-3">
+            {isScanning && (
+              <div className="rounded-lg border border-app bg-app p-3 text-sm flex items-center gap-2">
+                <span className="inline-block w-3 h-3 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" aria-hidden />
+                <span>Scanning Gmail… This can take up to 15 seconds.</span>
+              </div>
+            )}
+            {!!scanError && (
+              <div className="rounded-lg border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-200" role="alert">
+                {scanError}
+              </div>
+            )}
+            {newlyDetectedIds.length > 0 && (
+              <div className="rounded-lg border border-green-800 bg-green-900/30 p-3 text-sm text-green-200">
+                Found {newlyDetectedIds.length} new {newlyDetectedIds.length===1 ? 'subscription' : 'subscriptions'}. They’re highlighted as “New” in your list.
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 items-center">
               <div className="text-sm text-neutral-300">Sort</div>
               <select className="bg-app border border-app rounded-lg px-3 h-10 tap pressable" value={prefs.sort} onChange={(e)=>updatePrefs({ sort: e.target.value as Preferences['sort'] })}>
@@ -368,34 +462,11 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
             </div>
             {session && (
               <button
-                className="btn-glass-blue tap h-10"
-                onClick={async ()=>{
-                  announce('Starting Gmail scan…');
-                  const token = (session as unknown as { accessToken?: string })?.accessToken;
-                  if (!token) {
-                    // Request Google consent/token first, then return
-                    await signIn('google');
-                    return;
-                  }
-                  const res = await fetch('/api/scan', { method: 'POST' });
-                  if (res.status === 400 || res.status === 401) {
-                    await signIn('google');
-                    return;
-                  }
-                  if (!res.ok) { announce('Scan failed'); return; }
-                  const data = await res.json();
-                  // Refresh server state -> detectedIds
-                  const ref = await fetch('/api/subscriptions');
-                  if (ref.ok) {
-                    const payload = await ref.json();
-                    setDetectedIds(Array.isArray(payload?.subscriptions) ? payload.subscriptions.map((s: { id: string }) => s.id) : []);
-                    announce(`Found ${Array.isArray(data?.subscriptions) ? data.subscriptions.length : 0} subscriptions`);
-                  } else {
-                    announce('Scan complete');
-                  }
-                }}
+                className={`btn-glass-blue tap h-10 ${isScanning ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={isScanning}
+                onClick={startScanOverlayFlow}
               >
-                Connect Gmail & Scan
+                {isScanning ? 'Scanning…' : 'Connect Gmail & Scan'}
               </button>
             )}
             {session && (
@@ -419,6 +490,46 @@ export default function SubscriptionList({ items, onItemsChange }: { items: Subs
           </div>
         )}
       </BottomSheet>
+
+      {/* Full-screen Scan Overlay */}
+      {scanOverlayOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-auto text-center px-6">
+            {scanOverlayMode === 'scanning' && (
+              <div className="glass-card rounded-2xl px-6 py-10">
+                <div className="text-4xl mb-4" aria-hidden>📧</div>
+                <div className="text-2xl font-extrabold mb-1">Scanning your email…</div>
+                <div className="text-sm text-neutral-300 mb-6">Looking for subscription and billing emails</div>
+                <div className="h-2 bg-app/50 rounded-full overflow-hidden mb-2">
+                  <div className="h-full w-1/3 bg-blue-600 animate-[loading_1.2s_ease-in-out_infinite]" />
+                </div>
+                <div className="text-xs text-neutral-400">{scanStage}</div>
+              </div>
+            )}
+            {scanOverlayMode === 'result' && (
+              <div className="glass-card rounded-2xl px-6 py-10">
+                <div className="text-2xl font-extrabold mb-2">Found your subscriptions</div>
+                <div className="text-sm text-neutral-300 mb-6">Here's what's charging your accounts</div>
+                <div className="rounded-xl border border-rose-800 bg-rose-900/30 p-4 mb-6">
+                  <div className="text-3xl font-extrabold text-rose-300">{scanSummary.totalUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}<span className="text-base font-semibold text-rose-200">/month</span></div>
+                  <div className="text-xs text-rose-200/80 mt-1">across {scanSummary.count} {scanSummary.count===1?'subscription':'subscriptions'}</div>
+                </div>
+                <button className="btn-glass-blue" onClick={()=>{ setScanOverlayOpen(false); setScanOverlayMode('idle'); }}>Let's optimize this</button>
+              </div>
+            )}
+            {scanOverlayMode === 'error' && (
+              <div className="glass-card rounded-2xl px-6 py-10">
+                <div className="text-2xl font-extrabold mb-2">Scan failed</div>
+                <div className="text-sm text-neutral-300 mb-6">{scanError || 'Please try again.'}</div>
+                <div className="flex items-center justify-center gap-3">
+                  <button className="btn-quiet" onClick={()=>{ setScanOverlayOpen(false); setScanOverlayMode('idle'); }}>Close</button>
+                  <button className="btn-glass-blue" onClick={()=>{ void startScanOverlayFlow(); }}>Try again</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {insights && (
         <div className="mt-6 space-y-3">

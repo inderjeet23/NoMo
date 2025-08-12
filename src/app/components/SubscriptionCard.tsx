@@ -3,9 +3,10 @@ import { getBrandAvatarStyle } from '@/lib/brandAvatar';
 import { Subscription } from '@/lib/data';
 import { motion } from 'framer-motion';
 
-export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onHide, onEditPrice, isGuiding, expanded=false, onToggle }: {
+export default function SubscriptionCard({ sub, detected, newlyDetected, onGuide, onCancel, onHide, onEditPrice, isGuiding, expanded=false, onToggle }: {
   sub: Subscription;
   detected?: boolean;
+  newlyDetected?: boolean;
   onGuide: () => void;
   onCancel: () => void;
   onHide: () => void;
@@ -16,9 +17,10 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
 }) {
   const avatar = getBrandAvatarStyle(sub.name);
   const priceClass = sub.pricePerMonthUsd <= 5 ? 'text-emerald-600 dark:text-emerald-300' : sub.pricePerMonthUsd <= 20 ? 'text-neutral-700 dark:text-neutral-200' : 'text-rose-600 dark:text-rose-300';
+  const containerHighlight = newlyDetected ? 'ring-2 ring-green-500/40 animate-pulse' : '';
   return (
     <motion.li
-      className="glass-card rounded-2xl p-4 sm:p-5"
+      className={`glass-card rounded-2xl p-4 sm:p-5 ${containerHighlight}`}
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -37,6 +39,9 @@ export default function SubscriptionCard({ sub, detected, onGuide, onCancel, onH
             )}
             {detected && (
               <span className="inline-flex items-center rounded-full bg-green-600/20 text-green-700 dark:text-green-300 text-[10px] font-semibold px-2 py-2 border border-green-700/40">Detected</span>
+            )}
+            {newlyDetected && (
+              <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-semibold px-2 py-2 border border-amber-700/30">New</span>
             )}
           </div>
           {/* Mobile price/edit below name for breathing room */}
